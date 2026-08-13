@@ -945,8 +945,8 @@ T.eq(fires({ species = "TYROGUE", level = 20, stats = { attack = 20, defense = 3
 local staticsData = dofile("mods/crystal_legacy_changes/data/statics.lua")
 local gc = staticsData.gameCorner
 T.check(type(gc) == "table", "statics data file carries the gameCorner section")
-T.eq(export.rebalance.statics, 3,
-  "exports report all three game-corner prize arms patched")
+T.eq(export.rebalance.statics, 5,
+  "exports report 3 game-corner prize arms + master command + shrine row")
 
 local scripts = data.gen2Scripts
 T.check(type(scripts) == "table", "gen2Scripts survives the load")
@@ -1026,6 +1026,41 @@ end
 T.eq(deducted("57:68a9"), 100, "ABRA takecoins deducts 100")
 T.eq(deducted("57:68d7"), 800, "PORYGON takecoins deducts 800")
 T.eq(deducted("57:6905"), 1500, "DRATINI takecoins deducts 1500")
+
+-- ---- Phase 3b: Dragon's Den Dratini Master ------------------------------
+-- CL's Elder hands the post-quiz (post-Clair) champion an L15 DRATINI with
+-- the "true master" moveset.  Gold has no Elder in Dragon's Den B1F: the
+-- shrine tile (18,24) is a plain read bgEvent whose script row is a single
+-- jumptext, so the patch replaces that row with the mod command verb.
+local master = staticsData.master
+T.check(type(master) == "table", "statics data file carries the master section")
+T.eq(master.scriptKey, "47:4586", "shrine read bgEvent script key")
+T.eq(master.badge, "RISING", "gift gates on Clair's RISING badge")
+T.eq(master.speciesIndex, 147, "master gives DRATINI (147)")
+T.eq(master.level, 15, "DRATINI is level 15")
+T.eq(#(master.moves or {}), 4, "gift carries the four CL moves")
+T.eq(master.moves[4].id, "EXTREMESPEED", "true-master set ends on EXTREMESPEED")
+for _, mv in ipairs(master.moves or {}) do
+  T.check(type(mv.id) == "string" and type(mv.pp) == "number"
+    and mv.maxPp == mv.pp, "move row well-formed: " .. tostring(mv.id))
+end
+
+-- Text rows land in data.gen2Text under the mod prefix.
+for key, text in pairs(master.text or {}) do
+  T.eq(data.gen2Text["crystal_legacy_changes:dratini_" .. key], text,
+    "shrine text row registered: dratini_" .. key)
+end
+
+-- The command merged into the table the VM dispatches.
+T.check(type(data.commands["crystal_legacy_changes:dratini_master"]) == "function",
+  "command registered: dratini_master")
+
+-- The shrine read bgEvent script is now a straight command run.
+local shrineRow = scripts[master.scriptKey]
+T.check(type(shrineRow) == "table" and type(shrineRow[1]) == "table",
+  "shrine row replaced with a command row")
+T.eq(shrineRow[1][1], "crystal_legacy_changes:dratini_master",
+  "shrine row carries the master command")
 
 -- ---- Phase 3a: fossils + Ruins of Alph --------------------------------
 local fossilsData = dofile("mods/crystal_legacy_changes/data/fossils.lua")
@@ -1232,6 +1267,80 @@ vm = fakeVm({})
 withGame(stubSave({}, { [675] = true }, 0))
 fossils.deferred({ vm = vm }, "AERODACTYL")
 T.eq(#vm.seen, 0, "no badge: nothing claimed on entry")
+
+-- ---- Phase 3b behavior: Dratini Master gift flow ----------------------
+-- Same harness as fossils: mod.save backs the one-per-save flag, mod.game
+-- is the stub save, and the vm's givePokeFn appends to the save's party
+-- like the engine's World:givePoke (so the post-give moves override the
+-- verb performs is observable).
+local masterExport = export.statics
+T.check(type(masterExport) == "table", "exports carry the statics handlers")
+
+local function masterVm()
+  local state = { given = nil }
+  return {
+    seen = {},
+    state = state,
+    showText = function(self, key) self.seen[#self.seen + 1] = key end,
+    givePokeFn = function(species, level, item)
+      state.given = { species = species, level = level, item = item }
+      local save = run.loader.game and run.loader.game.save
+      if save and type(save.party) == "table" then
+        save.party[#save.party + 1] = { species = species, level = level }
+      end
+    end,
+  }
+end
+
+-- No RISING badge -> symbolic refusal, nothing given.
+clearSaveFlags()
+vm = masterVm()
+withGame(stubSave({}, {}, 0))
+masterExport.master({ vm = vm })
+T.eq(vm.seen[1], "crystal_legacy_changes:dratini_symbolic",
+  "no badge -> symbolic text")
+T.eq(#vm.seen, 1, "no badge: single text, no gift")
+T.eq(vm.state.given, nil, "no badge: nothing given")
+
+-- Badge held -> take-this, L15 DRATINI with the CL moveset, received.
+clearSaveFlags()
+vm = masterVm()
+withGame(stubSave({ RISING = true }, {}, 0))
+masterExport.master({ vm = vm })
+T.eq(vm.seen[1], "crystal_legacy_changes:dratini_take_this",
+  "badge -> take-this text")
+T.eq(vm.seen[2], "crystal_legacy_changes:dratini_received",
+  "badge -> received text")
+T.eq(#vm.seen, 2, "badge: exactly take-this + received")
+T.eq(vm.state.given.species, 147, "DRATINI species index 147")
+T.eq(vm.state.given.level, 15, "DRATINI level 15")
+local masterMon = run.loader.game.save.party[1]
+T.check(type(masterMon.moves) == "table", "gift moves overridden")
+T.eq(masterMon.moves[1].id, "WRAP", "move 1 WRAP")
+T.eq(masterMon.moves[2].id, "THUNDER_WAVE", "move 2 THUNDER_WAVE")
+T.eq(masterMon.moves[3].id, "TWISTER", "move 3 TWISTER")
+T.eq(masterMon.moves[4].id, "EXTREMESPEED", "move 4 EXTREMESPEED")
+T.eq(masterMon.moves[1].pp, 20, "WRAP PP 20 (gold moves.lua)")
+T.eq(masterMon.moves[1].maxPp, 20, "WRAP maxPp 20")
+T.eq(masterMon.moves[4].pp, 5, "EXTREMESPEED PP 5 (gold moves.lua)")
+
+-- One-per-save: re-talking the shrine after the gift is just the reflection.
+vm = masterVm()
+withGame(run.loader.game.save)
+masterExport.master({ vm = vm })
+T.eq(vm.seen[1], "crystal_legacy_changes:dratini_symbolic",
+  "re-talk -> symbolic reflection")
+T.eq(#run.loader.game.save.party, 1, "no second gift")
+
+-- Full party -> party-full text, nothing given.
+clearSaveFlags()
+vm = masterVm()
+withGame(stubSave({ RISING = true }, {}, 6))
+masterExport.master({ vm = vm })
+T.eq(vm.seen[1], "crystal_legacy_changes:dratini_party_full",
+  "full party -> party full text")
+T.eq(#vm.seen, 1, "full party: no gift attempt")
+T.eq(vm.state.given, nil, "full party: nothing given")
 
 run.release()
 T.finish("crystal_legacy_changes")

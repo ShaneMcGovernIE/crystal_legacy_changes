@@ -245,11 +245,77 @@ end
 -- in-game, opts.data under the SDK).
 local function applyStatics(mod, data, counts)
   counts.statics = 0
+
+  -- Dragon's Den Dratini Master (Phase 3b).  Gold's B1F shrine is a plain
+  -- read bgEvent whose script row is a single jumptext; we replace that row
+  -- with the mod command verb (badge-gated, one-per-save) and register the
+  -- verb + its text rows through the same registries fossils uses.
+  local master = data.master
+  local masterVerb
+  if type(master) == "table" then
+    for key, text in pairs(master.text or {}) do
+      mod.content.text:register("crystal_legacy_changes:dratini_" .. key, text)
+    end
+
+    local function saveOf()
+      local game = mod.game
+      return game and game.save
+    end
+    local function hasBadge(save, name)
+      local badges = save and save.player and save.player.badges
+      return type(badges) == "table" and badges[name] == true
+    end
+    local flag = "master.dratini"
+    local function copyMoves(list)
+      local out = {}
+      for _, mv in ipairs(list or {}) do
+        out[#out + 1] = { id = mv.id, pp = mv.pp, maxPp = mv.maxPp }
+      end
+      return out
+    end
+    masterVerb = function(ctx)
+      local vm = ctx and ctx.vm
+      if not vm then return end
+      local function say(key) vm:showText("crystal_legacy_changes:dratini_" .. key) end
+      if mod.save:get(flag) then
+        say("symbolic")
+        return
+      end
+      local save = saveOf()
+      if not hasBadge(save, master.badge) then
+        say("symbolic")
+        return
+      end
+      if type(save) == "table" and type(save.party) == "table"
+        and #save.party >= 6 then
+        say("party_full")
+        return
+      end
+      say("take_this")
+      if vm.givePokeFn then vm.givePokeFn(master.speciesIndex, master.level, nil) end
+      local mon = save and save.party and save.party[#save.party]
+      if mon then mon.moves = copyMoves(master.moves) end
+      mod.save:set(flag, true)
+      say("received")
+    end
+    mod.commands:register(master.verb, masterVerb)
+    counts.statics = counts.statics + 1
+    mod.exports.statics = { master = masterVerb, hasBadge = hasBadge, data = data }
+  end
+
   mod.events:on("mods.loaded", function(payload)
     local target = payload and payload.data
     if not target then return end
     local scripts = target.gen2Scripts
     if type(scripts) ~= "table" then return end
+
+    -- Shrine read bgEvent: the Dragon's Den B1F script becomes a straight
+    -- mod command run (the VM normalizes { "verb" } rows to MOD_COMMAND).
+    if type(master) == "table" and type(master.scriptKey) == "string"
+      and type(master.verb) == "string" then
+      scripts[master.scriptKey] = { { master.verb } }
+      counts.statics = counts.statics + 1
+    end
 
     local gc = data.gameCorner
     if type(gc) ~= "table" then return end

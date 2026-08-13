@@ -1,7 +1,7 @@
 {
   "id": "crystal_legacy_changes",
   "name": "Crystal Legacy Changes",
-  "version": "0.9.0",
+  "version": "1.0.0",
   "api": 2,
   "entry": "main.lua",
   "profile": "overhaul",

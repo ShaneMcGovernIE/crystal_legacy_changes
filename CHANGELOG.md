@@ -1,5 +1,37 @@
 # Changelog
 
+## [1.0.0] - 2026-08-13
+
+### Added
+
+First stable release: every Crystal Legacy patch from 0.4 through 0.9 plus the
+full Phase 4 engine batch, all gated green (suite 950/950).
+
+- Everything shipped since the 0.3.0 baseline — see [0.9.0] for the complete
+  Phase 3 payload (Team Rocket Base B1F–B3F deltas + ARCHER sprite, RadioTower
+  1F–5F takeover, Goldenrod Move Tutor, statics/gifts: Game Corner, fossils +
+  Ruins of Alph, Dratini Master, Snorlax, Mew at 249 caught, Kanto birds,
+  Celebi/GS Ball chain).
+- Berry shop LIVE (engine 941a337a): the mart gate is data-driven past the
+  34-shelf cap, so the Goldenrod Flower Shop clerk opens the CL berry shelves
+  (MART_BERRYS / MART_BERRYS_2) once the player holds 7 badges.
+- Item evolutions activate (engine e9336717, EvoStoneEffect port): the stone /
+  item families now evolve at runtime — Onix (Metal Coat), Scyther (Metal
+  Coat), Seadra (Dragon Scale), Porygon (Up Grade), Poliwhirl (King's Rock),
+  Slowpoke (King's Rock), Tyrogue (Brick Piece).
+- Hard / Hardcore difficulty modes (engine aabc4b50 + 97367cb9, CL
+  DifficultyFlags port): battle item-ban, forced Set, and no-revive.
+- Overworld sprites (4a4029a): SPRITE_MEW, SPRITE_CELEBI, SPRITE_ARTICUNO,
+  SPRITE_ZAPDOS, SPRITE_ELECTRODE, SPRITE_MURKROW ship converted from CL source
+  (no art synthesized) — Mew's Route 24 object, the Articuno/Zapdos statics,
+  Rocket Base B2F's six Electrodes, and B3F's Murkrow all render real art now.
+- Docs + credits refresh (README, mod.card) and the Phase 4 gate suite.
+
+### Notes
+
+- The GS Ball's bag icon remains a Phase 4 art item; Celebi stays a wild battle
+  by design (SPRITE_CELEBI registered for the future shrine cutscene port).
+
 ## [0.9.0] - 2026-08-13
 
 ### Added

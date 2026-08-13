@@ -109,6 +109,32 @@ local function applyTmhm(mod, data)
   return count
 end
 
+-- Evolutions: Gold hangs every species' evolution rows off the pokemon
+-- record's `evolutions` list; the loader's deep-merge replaces whole arrays,
+-- so patching `{ evolutions = rows }` swaps in the full CL list per species
+-- (record semantics -- no gold row survives).
+--
+-- The rows also change method for the five item evolutions: Gold evolves
+-- Onix, Scyther, Seadra, Porygon, Poliwhirl, Slowpoke and Tyrogue by trading
+-- a mon holding UP_GRADE / KINGS_ROCK / METAL_COAT / BRICK_PIECE /
+-- DRAGON_SCALE (EVOLVE_TRADE); Crystal uses the item directly on the mon
+-- (EVOLVE_ITEM).  EVOLVE_ITEM is engine-seeded with requiresForce=true
+-- (src/core/gen2/Evolution.lua), so the mod re-affirms that record instead
+-- of registering it -- register would collide with the engine's ownership of
+-- the id, while patch deep-merges into the engine record and keeps its check
+-- function.  requiresForce makes the stone-style item-use path fire while
+-- the after-battle sweep never does.
+local function applyEvolutions(mod, data, counts)
+  counts.evolutionMethods = 0
+  counts.evolutions = 0
+  mod.content.evolution_methods:patch("EVOLVE_ITEM", { requiresForce = true })
+  counts.evolutionMethods = 1
+  for id, rows in pairs(data.evolutions or {}) do
+    mod.content.pokemon:patch(id, { evolutions = rows })
+    counts.evolutions = counts.evolutions + 1
+  end
+end
+
 -- Encounters: Gold hangs every table of encounter rows off one registry per
 -- kind (grass/swarmGrass/water/swarmWater/fishGroups/trees/rocks/treeSets/
 -- bugContest/roamMaps).  The registry id IS the kind, so each patch folds
@@ -220,5 +246,6 @@ return function(mod)
   counts.marts = 0
   counts.clOnly = 0
   applyMarts(mod, loadSibling(mod, "data/marts.lua"), counts)
+  applyEvolutions(mod, loadSibling(mod, "data/evolutions.lua"), counts)
   mod.exports.rebalance = counts
 end

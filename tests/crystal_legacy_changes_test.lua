@@ -236,6 +236,9 @@ local function seedGoldEvolutions()
     ONIX = {
       { into = "STEELIX", item = "METAL_COAT", method = "EVOLVE_TRADE" },
     },
+    KADABRA = {
+      { into = "ALAKAZAM", method = "EVOLVE_TRADE" },
+    },
     TYROGUE = {
       { into = "HITMONTOP", level = 20, comparison = "ATK_EQ_DEF", method = "EVOLVE_STAT" },
       { into = "HITMONCHAN", level = 20, comparison = "ATK_LT_DEF", method = "EVOLVE_STAT" },
@@ -652,6 +655,58 @@ for species, rows in pairs(evolutionsData.evolutions or {}) do
 end
 T.eq(speciesCount, 15, "data file carries 15 species")
 T.eq(rowCount, 19, "data file carries 19 evolution rows")
+
+-- The item evolutions change method, not just the rows: gold's trade-with-
+-- item evos (UP_GRADE/KINGS_ROCK/METAL_COAT/BRICK_PIECE/DRAGON_SCALE) become
+-- EVOLVE_ITEM, whose engine record the mod re-affirms (patch, not register --
+-- the engine owns the id) with requiresForce=true so the stone-style use
+-- fires and the after-battle sweep never does.
+T.eq(export.rebalance.evolutionMethods, 1,
+  "exports report the re-affirmed EVOLVE_ITEM method record")
+local evolutionMethods = run.loader.content.evolution_methods
+T.eq(evolutionMethods:get("EVOLVE_ITEM").requiresForce, true,
+  "EVOLVE_ITEM carries force semantics for the item evolutions")
+
+-- Trade evolutions become level evolutions; the early shifts land.
+T.eq(rowsFor("KADABRA")[1].level, 42, "KADABRA evolves at 42 (gold: trade)")
+T.eq(rowsFor("MACHOKE")[1].level, 38, "MACHOKE evolves at 38 (gold: trade)")
+T.eq(rowsFor("GRAVELER")[1].level, 38, "GRAVELER evolves at 38 (gold: trade)")
+T.eq(rowsFor("HAUNTER")[1].level, 42, "HAUNTER evolves at 42 (gold: trade)")
+T.eq(rowsFor("PINECO")[1].level, 25, "PINECO evolves at 25 (gold: 31)")
+T.eq(rowsFor("SLUGMA")[1].level, 27, "SLUGMA evolves at 27 (gold: 38)")
+T.eq(rowsFor("SPINARAK")[1].level, 21, "SPINARAK evolves at 21 (gold: 22)")
+
+-- Behavioral: drive the engine's own row-walk against the merged data.
+-- EVOLVE_ITEM only fires from the item's use (force), never from the
+-- after-battle sweep; EVOLVE_LEVEL needs no link anymore; EVOLVE_STAT keys
+-- off the attack/defense comparison.
+local Evolution = require("src.core.gen2.Evolution")
+local function fires(mon, ctx)
+  local entry = Evolution.check(pokemon:get(mon.species), mon, ctx, data)
+  return entry and entry.into
+end
+T.eq(fires({ species = "ONIX", level = 30 }, { force = true, item = "METAL_COAT" }),
+  "STEELIX", "using a Metal Coat on Onix evolves it into Steelix")
+T.eq(fires({ species = "ONIX", level = 30 }, { force = true, item = "UP_GRADE" }),
+  nil, "the wrong item does not evolve Onix")
+T.eq(fires({ species = "ONIX", level = 30 }, { item = "METAL_COAT" }),
+  nil, "an item use with no force flag does not evolve Onix")
+T.eq(fires({ species = "ONIX", level = 30 }, {}),
+  nil, "the after-battle sweep never fires Onix's item evolution")
+T.eq(fires({ species = "KADABRA", level = 42 }, {}),
+  "ALAKAZAM", "Kadabra evolves into Alakazam at 42 with no link")
+T.eq(fires({ species = "KADABRA", level = 30 }, {}),
+  nil, "Kadabra does not evolve below level 42")
+T.eq(fires({ species = "MACHOKE", level = 38 }, {}),
+  "MACHAMP", "Machoke evolves into Machamp at 38 with no link")
+T.eq(fires({ species = "GRAVELER", level = 38 }, {}),
+  "GOLEM", "Graveler evolves into Golem at 38 with no link")
+T.eq(fires({ species = "HAUNTER", level = 42 }, {}),
+  "GENGAR", "Haunter evolves into Gengar at 42 with no link")
+T.eq(fires({ species = "TYROGUE", level = 20, stats = { attack = 30, defense = 20 } }, {}),
+  "HITMONLEE", "high-attack Tyrogue becomes Hitmonlee")
+T.eq(fires({ species = "TYROGUE", level = 20, stats = { attack = 20, defense = 30 } }, {}),
+  "HITMONCHAN", "high-defense Tyrogue becomes Hitmonchan")
 
 run.release()
 T.finish("crystal_legacy_changes")

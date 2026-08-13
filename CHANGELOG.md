@@ -1,5 +1,46 @@
 # Changelog
 
+## [0.9.0] - 2026-08-13
+
+### Added
+
+- Team Rocket Base B1F-B3F deltas (`data/rocket_base.lua`): the 9 audited
+  layout differences between gold and CL's base maps, cross-verified against
+  the asm walkthrough.
+  - B1F (21,12) itemball: X_ACCURACY → GUARD_SPEC (flag 1643).
+  - B2F GruntM18: (2,1) sight 3 → (4,1) sight 1.
+  - B3F RaticateTailGrunt: (5,15) → (5,14); Ross: (25,12) sight 4 →
+    (23,11) sight 0; Mitch: (14,15) → (11,15).
+  - B3F itemballs: (1,12) FULL_HEAL → PROTEIN, (3,12) DIRE_HIT → X_SPECIAL,
+    (28,9) PROTEIN → FULL_HEAL (flags 1645/1646/1647).
+  - B3F executive at (8,3) re-sprited SPRITE_ROCKET → SPRITE_ARCHER (real
+    art ships via the Rocket Tower sprite registration).
+  - B3F adds an UltraBall itemball at (14,10), item ULTRA_BALL, on free flag
+    1934 (persists "taken" across map reloads; index 14 = array position).
+  - No script/trainer deltas: gold's B3F boss already runs CL's exact Archer
+    hideout team through the trainers data patch.
+- Team Rocket RadioTower full port: RadioTower 1F-5F script-table patches
+  (boss scene at 5F included), SPRITE_ARCHER/SPRITE_GIOVANNI/
+  SPRITE_GIOVANNI_DISGUISE overworld art, and scene wiring.
+- Goldenrod City Move Tutor: the CL move-tutor dialogue and line-up, wired
+  through the game's native tutor scene.
+- Statics/gifts and story releases:
+  - Game Corner prizes → CL list (ABRA 100 / PORYGON 800 / DRATINI 1500).
+  - Fossils + Ruins of Alph revival (Kabuto/Omanyte/Aerodactyl), full inert
+    shape for all three fossil items.
+  - Dratini Master shrine gift; pin Vermilion Snorlax already CL-faithful.
+  - Mew dex-chain release splice; Celebi/GS Ball full Crystal chain;
+    Kanto birds CL release wiring.
+  - Flower Shop berry shop shipped mod-side, blocked on the Phase 4
+    mart-shelf gate.
+- 90 new test assertions covering the Rocket Base patch (suite now 779/779).
+
+### Notes
+
+- Rocket Base B2F's six electrodes still render gold's VOLTORB art, and B3F's
+  Murkrow still reuses gold's SPRITE_MOLTRES bird — both are known Phase 4
+  art gaps, never faked.
+
 ## [0.8.0] - 2026-08-13
 
 ### Added

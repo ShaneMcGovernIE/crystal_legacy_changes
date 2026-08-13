@@ -950,6 +950,104 @@ local function applyBerryShop(mod, data, counts, martsData)
   mod.exports.berryShop = { data = data }
 end
 
+-- Phase 3d2: Team Rocket RadioTower 5F (CL maps/RadioTower5F.asm port).
+-- Gold ALREADY ships the full 1F-5F Rocket takeover (fake director giving the
+-- BASEMENT_KEY, EXECUTIVEM_2 on 4F, EXECUTIVEF_1 on 5F, the takeover flag
+-- cascade), so this only ports the CL-only 5F boss scene as script-table
+-- patches: ROCKET_LEADER/Archer replaces the EXECUTIVEM_1 battle, the
+-- GIOVANNI hologram + ARCHER disband sequences are added, and the boss object
+-- wears SPRITE_ARCHER.  The director walk-in reuses the GENTLEMAN object
+-- (CL-style) and the reward stays gold's RAINBOW_WING (CL's CLEAR_BELL does
+-- not exist in gold; gold's Tin Tower is event-gated, so no setmapscene).
+-- The two GIOVANNI objects (flags 1932/1933, free above gold's 1931) are set
+-- hidden at mods.loaded, matching CL's new-game-init setevent.
+local function applyRocketTower(mod, data, counts)
+  counts.rocketTower = { scripts = 0, objects = 0, sprites = 0, texts = 0, movements = 0 }
+
+  -- (a) Register CL's sprites.  Art ships in assets/sprites/*.png (copied
+  --     verbatim from CL_source/gfx/sprites -- same 16x96 4-shade sheet
+  --     format as gold's imported overworld sprites).
+  for _, sprite in ipairs(data.sprites or {}) do
+    mod.content.sprites:register(sprite.id, {
+      image = sprite.image,
+      frames = 6,
+      walker = true,
+      palette = sprite.palette,
+      paletteId = sprite.paletteId,
+      spriteType = "WALKING_SPRITE",
+    })
+    counts.rocketTower.sprites = counts.rocketTower.sprites + 1
+  end
+
+  -- (b) Register CL's texts (plain \n lines; the port's TextBox paginates).
+  for key, text in pairs(data.texts or {}) do
+    mod.content.text:register("crystal_legacy_changes:" .. key, text)
+    counts.rocketTower.texts = counts.rocketTower.texts + 1
+  end
+
+  mod.events:on("mods.loaded", function(payload)
+    local target = payload and payload.data
+    if not target then return end
+
+    -- Hide both GIOVANNI objects from the start (CL sets the flag at
+    -- new-game init; the scene's appear/disappear toggles them).  Idempotent,
+    -- so this re-runs on every mods.loaded (hot reload / test re-fire).
+    mod.save:set(data.flags.giovanniDisguise, true)
+    mod.save:set(data.flags.giovanniReal, true)
+
+    -- One-per-session guard: the injections below must not re-run (hot
+    -- reload re-runs entry chunks; tests re-fire mods.loaded to reach the
+    -- save writes above).
+    if mod._rocketTowerInstalled then return end
+    mod._rocketTowerInstalled = true
+
+    local scripts = target.gen2Scripts
+    local movements = target.gen2Movement
+    local map = type(target.gen2Maps) == "table" and target.gen2Maps[data.map]
+    if type(scripts) ~= "table" or type(movements) ~= "table"
+      or type(map) ~= "table" or type(map.objects) ~= "table" then
+      return
+    end
+
+    -- (c) Movement tables + the two scripts (hologram no-op talk, boss scene).
+    for key, bytes in pairs(data.movements or {}) do
+      movements["crystal_legacy_changes:" .. key] = bytes
+      counts.rocketTower.movements = counts.rocketTower.movements + 1
+    end
+    scripts[data.objectEventKey] = { { op = "end" } }
+    scripts[data.bossSceneKey] = data.scene
+    counts.rocketTower.scripts = counts.rocketTower.scripts + 1
+
+    -- (d) Repoint the boss coordEvent (scene 1 at (16,5)) to the mod scene.
+    if type(map.coordEvents) == "table" then
+      for _, ce in ipairs(map.coordEvents) do
+        if ce.sceneId == data.coordEvent.sceneId
+          and ce.x == data.coordEvent.x and ce.y == data.coordEvent.y then
+          ce.scriptKey = data.bossSceneKey
+          break
+        end
+      end
+    end
+
+    -- (e) The boss object (SPRITE_ROCKET at (13,5)) wears Archer's sprite.
+    for _, obj in ipairs(map.objects) do
+      if obj.sprite == "SPRITE_ROCKET" and obj.x == 13 and obj.y == 5 then
+        obj.sprite = "SPRITE_ARCHER"
+        counts.rocketTower.objects = counts.rocketTower.objects + 1
+        break
+      end
+    end
+
+    -- (f) Append the two GIOVANNI hologram objects.
+    for _, obj in ipairs(data.objects or {}) do
+      table.insert(map.objects, obj)
+      counts.rocketTower.objects = counts.rocketTower.objects + 1
+    end
+  end)
+
+  mod.exports.rocketTower = { data = data }
+end
+
 -- Phase 3d: Goldenrod City Move Tutor (CL maps/GoldenrodCity.asm:52-165).
 -- CL's tutor is a MAPCALLBACK_OBJECTS NPC who appears after 7 Badges with a
 -- Coin Case and hides once taught today; gold has none, so the mod appends an
@@ -1122,6 +1220,7 @@ return function(mod)
   applyFossils(mod, loadSibling(mod, "data/fossils.lua"), counts)
   applyBerryShop(mod, loadSibling(mod, "data/berry_shop.lua"), counts,
     loadSibling(mod, "data/marts.lua"))
+  applyRocketTower(mod, loadSibling(mod, "data/rocket_tower.lua"), counts)
   applyMoveTutor(mod, loadSibling(mod, "data/move_tutor.lua"), counts,
     loadSibling(mod, "data/tutor_moves.lua"))
   mod.exports.rebalance = counts

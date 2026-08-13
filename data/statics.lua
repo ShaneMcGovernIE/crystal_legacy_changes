@@ -152,4 +152,114 @@ statics.mew = {
   },
 }
 
+-- ---------------------------------------------------------------------------
+-- Kanto legendary birds — post-quest L60 wild encounters (CL).
+--
+-- CL releases each bird as a one-time L60 wild encounter after its quest
+-- moment: Moltres after beating Blaine (maps/SeafoamGym.asm:33 clearevent
+-- between reloadmapafterbattle and the badge setevent), Articuno after
+-- beating Blue (maps/ViridianGym.asm:26, same seam), Zapdos when the player
+-- returns the Machine Part to the Power Plant manager (maps/PowerPlant.asm
+-- .FoundMachinePart clearevent right after setevent EVENT_RESTORED_POWER_TO_
+-- KANTO — the task's "post-Lance" shorthand; the Zapdos L55 in Lance's
+-- champion team is a separate trainer row, trainers.lua).  Gold has none of
+-- it: the birds never appear and the flags don't exist.
+--
+-- CL's event is one EVENT_CAUGHT_<BIRD> flag per bird: seeded SET at NewGame
+-- (bird hidden), cleared by the release splice (bird appears), set again by
+-- the catch script (bird gone — the engine's disappear op also re-sets the
+-- object's eventFlag, so a caught bird stays gone).  The catch script is CL's
+-- verbatim flow (opentext / writetext "Gyaoo!" / cry / loadwildmon L60 /
+-- startbattle / disappear / setevent / reloadmapafterbattle); Zapdos alone
+-- adds faceplayer.  speciesIndex is gold's dex-order id (ARTICUNO=144,
+-- ZAPDOS=145, MOLTRES=146 — gold's runtime data, same order as CL's
+-- pokemon_constants); coords are CL's object_event coords in double-res tile
+-- space; seams anchor on the gold script rows (verified in the cache's
+-- scripts.lua: "53:5188" Blaine win path, "5f:4002" Blue, "54:4deb" manager
+-- FoundMachinePart after setevent 1900 RESTORED_POWER).
+--
+-- Visible objects are Phase 4 except Moltres: gold ships SPRITE_MOLTRES as a
+-- POKEMON_SPRITE (sprites.lua SpriteMons row, PAL_OW_RED), so the Victory
+-- Road object is added now (index 7 = 6 vanilla + 1); ARTICUNO (ROUTE_20,
+-- would be index 4) and ZAPDOS (ROUTE_10_NORTH, index 1) need overworld art
+-- — wired (flag/script/coords) but not spawned.  Verified 2026-08-13 against
+-- the gold cache (maps.lua VICTORY_ROAD/ROUTE_20/ROUTE_10_NORTH objects,
+-- scripts.lua "53:5188"/"5f:4002"/"54:4dbd"+"54:4deb", sprites.lua
+-- SPRITE_MOLTRES, initial_events.lua) and CL (maps/SeafoamGym.asm,
+-- maps/ViridianGym.asm, maps/PowerPlant.asm, maps/VictoryRoad.asm,
+-- maps/Route20.asm, maps/Route10North.asm).
+-- ---------------------------------------------------------------------------
+statics.birds = {
+  {
+    id = "moltres",
+    flag = 1942,          -- EVENT_CAUGHT_MOLTRES (free in gold's space)
+    speciesIndex = 146,   -- MOLTRES
+    level = 60,
+    faceplayer = false,   -- CL's MoltresScript has no faceplayer
+    text = "Gyaoo!",      -- CL's MoltresBattleText, verbatim
+    mapId = "VICTORY_ROAD",
+    coords = { x = 18, y = 32 },
+    objectIndex = 7,      -- gold VICTORY_ROAD has 6 objects (1..6)
+    sprite = "SPRITE_MOLTRES", -- gold art exists (POKEMON_SPRITE)
+    textKey = "crystal_legacy_changes:birds_moltres",
+    scriptKey = "crystal_legacy_changes:birds_moltres",
+    seams = {             -- Blaine win path (post-battle, pre-badge)
+      { scriptKey = "53:5188", afterOp = "reloadmapafterbattle" },
+    },
+    object = {            -- added to VICTORY_ROAD now (sprite exists)
+      mapId = "VICTORY_ROAD",
+      eventFlag = 1942,
+      hours = { -1, -1 },
+      index = 7,
+      movement = 0x16,    -- SPRITEMOVEDATA_POKEMON (CL); engine stands it
+      palette = 0,
+      radius = { x = 0, y = 0 },
+      script = 0,
+      scriptKey = "crystal_legacy_changes:birds_moltres",
+      sight = 0,
+      sprite = "SPRITE_MOLTRES",
+      spriteId = 0,       -- no ROM OverworldSprites slot (SpriteMons art)
+      type = 0,
+      x = 18,
+      y = 32,
+    },
+  },
+  {
+    id = "articuno",
+    flag = 1943,          -- EVENT_CAUGHT_ARTICUNO (free in gold's space)
+    speciesIndex = 144,   -- ARTICUNO
+    level = 60,
+    faceplayer = false,   -- CL's ArticunoScript has no faceplayer
+    text = "Gyaoo!",      -- CL's ArticunoBattleText, verbatim
+    mapId = "ROUTE_20",
+    coords = { x = 31, y = 11 },
+    objectIndex = 4,      -- gold ROUTE_20 has 3 objects (1..3)
+    sprite = "SPRITE_ARTICUNO", -- Phase 4: no gold art
+    textKey = "crystal_legacy_changes:birds_articuno",
+    scriptKey = "crystal_legacy_changes:birds_articuno",
+    seams = {             -- Blue (post-battle, pre-badge)
+      { scriptKey = "5f:4002", afterOp = "reloadmapafterbattle" },
+    },
+    -- object deferred to Phase 4 (needs SPRITE_ARTICUNO art)
+  },
+  {
+    id = "zapdos",
+    flag = 1944,          -- EVENT_CAUGHT_ZAPDOS (free in gold's space)
+    speciesIndex = 145,   -- ZAPDOS
+    level = 60,
+    faceplayer = true,    -- CL's ZapdosScript starts with faceplayer
+    text = "Gyaoo!",      -- CL's ZapdosBattleText, verbatim
+    mapId = "ROUTE_10_NORTH",
+    coords = { x = 4, y = 11 },
+    objectIndex = 1,      -- gold ROUTE_10_NORTH has no objects
+    sprite = "SPRITE_ZAPDOS", -- Phase 4: no gold art
+    textKey = "crystal_legacy_changes:birds_zapdos",
+    scriptKey = "crystal_legacy_changes:birds_zapdos",
+    seams = {             -- Power Plant manager, Machine Part returned
+      { scriptKey = "54:4deb", afterOp = "setevent", afterEvent = 1900 },
+    },
+    -- object deferred to Phase 4 (needs SPRITE_ZAPDOS art)
+  },
+}
+
 return statics

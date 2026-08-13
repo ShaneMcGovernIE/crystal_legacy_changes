@@ -524,6 +524,67 @@ local function seedGoldFossils()
 end
 seedGoldFossils()
 
+-- Phase 3c Kanto legendary birds: CL releases each bird as a one-time L60
+-- wild encounter after its quest moment (Blaine -> Moltres, Blue ->
+-- Articuno, Machine Part returned to the Power Plant manager -> Zapdos);
+-- gold has none of it.  Seed gold-shaped rows so a no-op patch would leave
+-- the vanilla scripts release-free and the bird flags unseeded.
+local function seedGoldBirds()
+  data.gen2Scripts = data.gen2Scripts or {}
+  -- Blaine win path (Seafoam Gym): reloadmapafterbattle -> badge setevent.
+  data.gen2Scripts["53:5188"] = {
+    { op = "reloadmapafterbattle" },
+    { op = "setevent", event = 1227 },
+    { op = "opentext" },
+    { op = "writetext", text = "53:52fb" },
+    { op = "setflag", flag = 40 },
+    { op = "end" },
+  }
+  -- Blue (Viridian Gym): reloadmapafterbattle -> badge setevent.
+  data.gen2Scripts["5f:4002"] = {
+    { op = "faceplayer" },
+    { op = "opentext" },
+    { op = "winlosstext" },
+    { op = "loadtrainer", class = 64, member = 1 },
+    { op = "startbattle" },
+    { op = "reloadmapafterbattle" },
+    { op = "setevent", event = 1228 },
+    { op = "setflag", flag = 41 },
+    { op = "end" },
+  }
+  -- Power Plant manager, Machine Part returned branch: RESTORED_POWER
+  -- setevent is the anchor; the vanilla branch hands out TM07 after it.
+  data.gen2Scripts["54:4deb"] = {
+    { op = "writetext", text = "54:52bf" },
+    { op = "promptbutton" },
+    { op = "takeitem", item = 128 },
+    { op = "setevent", event = 201 },
+    { op = "clearevent", event = 1906 },
+    { op = "setevent", event = 1905 },
+    { op = "setevent", event = 1900 },   -- EVENT_RESTORED_POWER_TO_KANTO
+    { op = "setevent", event = 205 },
+    { op = "clearevent", event = 1865 },
+    { op = "end" },
+  }
+  -- New-game seeding target: gold's initial-event flag list.
+  data.gen2InitialEvents = data.gen2InitialEvents or {}
+  data.gen2InitialEvents.flags = data.gen2InitialEvents.flags or {}
+  -- Gold VICTORY_ROAD with its 6 vanilla objects, so the Moltres object must
+  -- land as #7 (index 7) when the mod appends it.
+  data.gen2Maps = data.gen2Maps or {}
+  data.gen2Maps.VICTORY_ROAD = {
+    id = "VICTORY_ROAD",
+    objects = {},
+  }
+  for i = 1, 6 do
+    data.gen2Maps.VICTORY_ROAD.objects[i] = {
+      eventFlag = 65535, index = i, sprite = "SPRITE_TEAL",
+      script = 0, scriptKey = "54:4d4d", x = i, y = i,
+    }
+  end
+end
+seedGoldBirds()
+
 local run = T.sdk.loadMod("mods/crystal_legacy_changes", {
   data = data,
   generation = 2,
@@ -1045,8 +1106,8 @@ T.eq(fires({ species = "TYROGUE", level = 20, stats = { attack = 20, defense = 3
 local staticsData = dofile("mods/crystal_legacy_changes/data/statics.lua")
 local gc = staticsData.gameCorner
 T.check(type(gc) == "table", "statics data file carries the gameCorner section")
-T.eq(export.rebalance.statics, 6,
-  "exports report 3 game-corner prize arms + master command + shrine row + mew release")
+T.eq(export.rebalance.statics, 13,
+  "exports report 3 game-corner prize arms + master command + shrine row + mew release + 3 bird catch scripts + 3 bird release splices + Moltres object")
 
 local scripts = data.gen2Scripts
 T.check(type(scripts) == "table", "gen2Scripts survives the load")
@@ -1185,8 +1246,8 @@ T.check(snorlax.text.sleeping:match("^SNORLAX is snoring"),
 T.check(snorlax.text.wake:match("^The POKéGEAR was placed")
   and snorlax.text.wake:match("SNORLAX woke up!$"),
   "wake text matches CL wording")
-T.eq(export.rebalance.statics, 6,
-  "pin adds no patched arm (statics count reflects master + mew only)")
+T.eq(export.rebalance.statics, 13,
+  "pin adds no patched arm (statics count reflects master + mew + birds)")
 
 -- ---- Phase 3b: Route 24 Mew dex-chain release --------------------------
 -- CL splices a Mew release into gold's EXISTING dex-completion branch; the
@@ -1240,6 +1301,164 @@ T.check(type(skip) == "table", "skip target row registered")
 T.eq(skip[1].op, "writetext", "skip starts at the after-diploma text")
 T.eq(skip[1].text, mew.text.after_diploma, "same gold text row")
 T.eq(skip[#skip].op, "end", "skip ends cleanly")
+
+-- ---- Phase 3c: Kanto legendary birds ------------------------------------
+-- CL releases each bird as a one-time L60 wild encounter after its quest
+-- moment; gold has none of it.  CL's event is one EVENT_CAUGHT_<BIRD> flag
+-- per bird, seeded SET at NewGame (bird hidden), cleared by the release
+-- splice (bird appears), set again by the catch script (bird gone).  The
+-- visible objects are Phase 4 except Moltres (gold ships SPRITE_MOLTRES).
+local birds = staticsData.birds
+T.check(type(birds) == "table", "statics data file carries the birds section")
+T.eq(#birds, 3, "three birds wired (Moltres, Articuno, Zapdos)")
+local birdsById = {}
+for _, bird in ipairs(birds or {}) do
+  birdsById[bird.id] = bird
+end
+
+-- CL facts, verbatim (speciesIndex is gold's dex-order id).
+local moltres = birdsById.moltres
+T.check(type(moltres) == "table", "Moltres section present")
+T.eq(moltres.speciesIndex, 146, "Moltres species 146")
+T.eq(moltres.level, 60, "Moltres is L60")
+T.eq(moltres.mapId, "VICTORY_ROAD", "Moltres spawns on Victory Road")
+T.eq(moltres.coords.x, 18, "Victory Road tile x 18 (CL)")
+T.eq(moltres.coords.y, 32, "Victory Road tile y 32 (CL)")
+T.eq(moltres.flag, 1942, "EVENT_CAUGHT_MOLTRES (free in gold's space)")
+T.eq(moltres.faceplayer, false, "CL's MoltresScript has no faceplayer")
+T.eq(moltres.text, "Gyaoo!", "MoltresBattleText verbatim")
+local articuno = birdsById.articuno
+T.check(type(articuno) == "table", "Articuno section present")
+T.eq(articuno.speciesIndex, 144, "Articuno species 144")
+T.eq(articuno.level, 60, "Articuno is L60")
+T.eq(articuno.mapId, "ROUTE_20", "Articuno spawns on Route 20")
+T.eq(articuno.coords.x, 31, "Route 20 tile x 31 (CL)")
+T.eq(articuno.coords.y, 11, "Route 20 tile y 11 (CL)")
+T.eq(articuno.flag, 1943, "EVENT_CAUGHT_ARTICUNO (free in gold's space)")
+T.eq(articuno.faceplayer, false, "CL's ArticunoScript has no faceplayer")
+T.eq(articuno.text, "Gyaoo!", "ArticunoBattleText verbatim")
+local zapdos = birdsById.zapdos
+T.check(type(zapdos) == "table", "Zapdos section present")
+T.eq(zapdos.speciesIndex, 145, "Zapdos species 145")
+T.eq(zapdos.level, 60, "Zapdos is L60")
+T.eq(zapdos.mapId, "ROUTE_10_NORTH", "Zapdos spawns on Route 10 North")
+T.eq(zapdos.coords.x, 4, "Route 10 North tile x 4 (CL)")
+T.eq(zapdos.coords.y, 11, "Route 10 North tile y 11 (CL)")
+T.eq(zapdos.flag, 1944, "EVENT_CAUGHT_ZAPDOS (free in gold's space)")
+T.eq(zapdos.faceplayer, true, "CL's ZapdosScript starts with faceplayer")
+T.eq(zapdos.text, "Gyaoo!", "ZapdosBattleText verbatim")
+
+-- Catch scripts: CL's verbatim flow (cry / loadwildmon 60 / startbattle /
+-- disappear / setevent / reloadmapafterbattle), text "Gyaoo!" registered.
+local function birdScript(bird)
+  local rows = scripts[bird.scriptKey]
+  T.check(type(rows) == "table", bird.id .. " catch script registered")
+  return rows
+end
+local moltresRows = birdScript(moltres)
+T.eq(moltresRows[1].op, "opentext", "Moltres: opens text first (no faceplayer)")
+T.eq(moltresRows[2].op, "writetext", "Moltres: battle text")
+T.eq(moltresRows[2].text, moltres.textKey, "Moltres: text key points at the cry")
+T.eq(moltresRows[3].op, "cry", "Moltres: cry")
+T.eq(moltresRows[3].id, 146, "Moltres: cries as species 146")
+T.eq(moltresRows[6].op, "loadwildmon", "Moltres: loadwildmon")
+T.eq(moltresRows[6].species, 146, "Moltres: species 146")
+T.eq(moltresRows[6].level, 60, "Moltres: L60")
+T.eq(moltresRows[7].op, "startbattle", "Moltres: startbattle")
+T.eq(moltresRows[8].op, "disappear", "Moltres: disappears after the fight")
+T.eq(moltresRows[8].object, 7, "Moltres: hides the Victory Road object (index 7)")
+T.eq(moltresRows[9].op, "setevent", "Moltres: sets the caught flag")
+T.eq(moltresRows[9].event, 1942, "Moltres: EVENT_CAUGHT_MOLTRES")
+T.eq(moltresRows[10].op, "reloadmapafterbattle", "Moltres: reload after battle")
+T.eq(moltresRows[#moltresRows].op, "end", "Moltres: script ends cleanly")
+local articunoRows = birdScript(articuno)
+T.eq(articunoRows[1].op, "opentext", "Articuno: opens text first (no faceplayer)")
+T.eq(articunoRows[3].id, 144, "Articuno: cries as species 144")
+T.eq(articunoRows[6].species, 144, "Articuno: species 144")
+T.eq(articunoRows[6].level, 60, "Articuno: L60")
+T.eq(articunoRows[8].object, 4, "Articuno: hides the Route 20 object (index 4)")
+T.eq(articunoRows[9].event, 1943, "Articuno: EVENT_CAUGHT_ARTICUNO")
+local zapdosRows = birdScript(zapdos)
+T.eq(zapdosRows[1].op, "faceplayer", "Zapdos: faces the player first (CL)")
+T.eq(zapdosRows[4].id, 145, "Zapdos: cries as species 145")
+T.eq(zapdosRows[7].op, "loadwildmon", "Zapdos: loadwildmon (faceplayer shifts rows)")
+T.eq(zapdosRows[7].species, 145, "Zapdos: species 145")
+T.eq(zapdosRows[7].level, 60, "Zapdos: L60")
+T.eq(zapdosRows[9].op, "disappear", "Zapdos: disappears after the fight")
+T.eq(zapdosRows[9].object, 1, "Zapdos: hides the Route 10 North object (index 1)")
+T.eq(zapdosRows[10].event, 1944, "Zapdos: EVENT_CAUGHT_ZAPDOS")
+
+-- Release seams: the clearevent lands right after each quest's anchor row.
+local function seamRow(bird, seam, birdIdx)
+  local row = scripts[seam.scriptKey]
+  local pos
+  for i, step in ipairs(row) do
+    if step.op == seam.afterOp
+      and (seam.afterEvent == nil or step.event == seam.afterEvent) then
+      pos = i
+      break
+    end
+  end
+  T.check(type(pos) == "number", bird.id .. ": seam anchor found in " .. seam.scriptKey)
+  local after = row[pos + 1]
+  T.eq(after.op, "clearevent", bird.id .. ": clearevent right after the anchor")
+  T.eq(after.event, bird.flag, bird.id .. ": clears EVENT_CAUGHT_" .. bird.id:upper())
+  return after
+end
+local blaineSeam = moltres.seams[1]
+T.eq(blaineSeam.scriptKey, "53:5188", "Moltres seam is Blaine's win path")
+local blueSeam = articuno.seams[1]
+T.eq(blueSeam.scriptKey, "5f:4002", "Articuno seam is Blue")
+local zapSeam = zapdos.seams[1]
+T.eq(zapSeam.scriptKey, "54:4deb", "Zapdos seam is the manager's FoundMachinePart")
+seamRow(moltres, blaineSeam)
+seamRow(articuno, blueSeam)
+seamRow(zapdos, zapSeam)
+
+-- The Zapdos clearevent sits after RESTORED_POWER (setevent 1900), not after
+-- the badge — CL's PowerPlant.asm puts it there, between the RESTORED_POWER
+-- setevent and the TM07 hand-out.
+local zapRow = scripts["54:4deb"]
+local afterPower
+for i, step in ipairs(zapRow) do
+  if step.op == "setevent" and step.event == 1900 then afterPower = zapRow[i + 1] end
+end
+T.eq(afterPower.op, "clearevent", "Zapdos: released the moment power is restored")
+T.eq(afterPower.event, 1944, "Zapdos: clears EVENT_CAUGHT_ZAPDOS")
+
+-- New-game seeding: the bird flags join gold's initial events so a fresh
+-- save starts with all three birds hidden.
+local initial = data.gen2InitialEvents
+T.check(type(initial) == "table" and type(initial.flags) == "table",
+  "gen2InitialEvents present after the load")
+local seen = {}
+for _, id in ipairs(initial.flags or {}) do seen[id] = true end
+T.eq(seen[1942], true, "Moltres flag seeded at NewGame")
+T.eq(seen[1943], true, "Articuno flag seeded at NewGame")
+T.eq(seen[1944], true, "Zapdos flag seeded at NewGame")
+
+-- Visible object: only Moltres spawns now (gold ships SPRITE_MOLTRES); it is
+-- the 7th object on VICTORY_ROAD, hidden while flag 1942 is SET.
+local victoryRoad = data.gen2Maps.VICTORY_ROAD
+T.check(type(victoryRoad) == "table" and type(victoryRoad.objects) == "table",
+  "VICTORY_ROAD survives the load")
+T.eq(#victoryRoad.objects, 7, "Moltres appended as the 7th Victory Road object")
+local moltresObject = victoryRoad.objects[7]
+T.check(type(moltresObject) == "table", "Moltres object present")
+T.eq(moltresObject.index, 7, "object index 7 (matches the disappear arg)")
+T.eq(moltresObject.sprite, "SPRITE_MOLTRES", "SPRITE_MOLTRES overworld art")
+T.eq(moltresObject.eventFlag, 1942, "object hidden while EVENT_CAUGHT_MOLTRES is SET")
+T.eq(moltresObject.scriptKey, moltres.scriptKey, "object runs the catch script")
+T.eq(moltresObject.x, 18, "object at Victory Road x 18")
+T.eq(moltresObject.y, 32, "object at Victory Road y 32")
+T.eq(moltresObject.movement, 0x16, "SPRITEMOVEDATA_POKEMON (CL)")
+-- Phase 4: Articuno/Zapdos are wired but their objects need new overworld
+-- art (gold lacks SPRITE_ARTICUNO/ZAPDOS); the data section carries their
+-- target map/coords/index for when the art lands.
+T.check(type(articuno.object) ~= "table", "Articuno object deferred (Phase 4)")
+T.check(type(zapdos.object) ~= "table", "Zapdos object deferred (Phase 4)")
+T.eq(articuno.objectIndex, 4, "Articuno will be the 4th Route 20 object")
+T.eq(zapdos.objectIndex, 1, "Zapdos will be the 1st Route 10 North object")
 
 -- ---- Phase 3a: fossils + Ruins of Alph --------------------------------
 local fossilsData = dofile("mods/crystal_legacy_changes/data/fossils.lua")

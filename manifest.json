@@ -1,0 +1,17 @@
+{
+  "id": "crystal_legacy_changes",
+  "name": "Crystal Legacy Changes",
+  "version": "0.3.0",
+  "api": 2,
+  "entry": "main.lua",
+  "profile": "overhaul",
+  "category": "BALANCE",
+  "games": [
+    "gold"
+  ],
+  "description": "Native Gold reimplementation of the Crystal Legacy stat and move rebalance from TSP's design document.",
+  "dependencies": [],
+  "optional_dependencies": [],
+  "conflicts": [],
+  "github": "ShaneMcGovernIE/crystal_legacy_changes"
+}

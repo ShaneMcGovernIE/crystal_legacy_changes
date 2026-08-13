@@ -316,6 +316,17 @@ local function applyStatics(mod, data, counts)
     end
   end
 
+  -- Celebi / GS Ball dialogue (CL, in spirit): the receptionist gift, Kurt's
+  -- hand-off, the shrine prompt + insertion, and the Ruins of Alph fallback.
+  local celebi = data.celebi
+  if type(celebi) == "table" and type(celebi.texts) == "table" then
+    for key, text in pairs(celebi.texts) do
+      if type(key) == "string" and type(text) == "string" then
+        mod.content.text:register("crystal_legacy_changes:celebi_" .. key, text)
+      end
+    end
+  end
+
   mod.events:on("mods.loaded", function(payload)
     local target = payload and payload.data
     if not target then return end
@@ -434,6 +445,210 @@ local function applyStatics(mod, data, counts)
               counts.statics = counts.statics + 1
             end
           end
+        end
+      end
+    end
+
+    -- Celebi / GS Ball (Phase 3c): full Crystal chain, mod-side (gold has
+    -- none of it — no GS_BALL item, no shrine event, vanilla-only Kurt).
+    -- (a) GS_BALL item def at index 251 (bag/checkitem/takeitem/verbosegiveitem
+    -- resolve by index — no engine work; pack icon Phase 4).  (b) The gift:
+    -- a LINK_RECEPTIONIST appended to the Goldenrod Pokecenter (gold has no
+    -- receptionist there) with CL's gift flow.  (c) Kurt: two checkevent/
+    -- iftrue rows spliced after his opentext branch to the give/gave scripts
+    -- (give = 7-badge gate + yesorno + take the ball; gave = return it and
+    -- set FOREST_IS_RESTLESS — CL's Azalea return scene simplified away, see
+    -- data/statics.lua).  (d) The Ilex shrine bg_event repointed to the
+    -- shrine script (quiet gold text until restless; checkitem -> yesorno ->
+    -- takeitem -> Celebi L30 wild battle — Celebi is a wild battle, no
+    -- SPRITE_CELEBI needed).  (e) The Ruins of Alph fallback: a RESEARCHER
+    -- appended to the Inner Chamber offering the ball if never gotten (gold
+    -- has no Ho-Oh-puzzle events, so no puzzle gate).
+    local celebi = data.celebi
+    if type(celebi) == "table" then
+      local flags = celebi.flags
+      local cKeys = celebi.scriptKeys
+      local cText = "crystal_legacy_changes:celebi_"
+      local gsBall = type(celebi.item) == "table" and celebi.item.index
+      -- (a) the item def.
+      local items = target.items
+      if type(items) == "table" and gsBall then
+        items[celebi.item.id] = celebi.item
+        counts.statics = counts.statics + 1
+      end
+      local maps = target.gen2Maps
+      if type(maps) == "table" and gsBall and type(flags) == "table" then
+        -- (b) the gift (always-visible receptionist; every gate is in-script).
+        scripts[cKeys.gift] = {
+          { op = "faceplayer" },
+          { op = "opentext" },
+          { op = "checkevent", event = flags.got },
+          { op = "iftrue", script = cKeys.giftDone },
+          { op = "writetext", text = cText .. "gift" },
+          { op = "verbosegiveitem", item = gsBall },
+          { op = "setevent", event = flags.got },
+          { op = "setevent", event = flags.canGive },
+          { op = "closetext" },
+          { op = "end" },
+        }
+        scripts[cKeys.giftDone] = { { op = "closetext" }, { op = "end" } }
+        counts.statics = counts.statics + 1
+        local pc = maps[celebi.pokecenter.mapId]
+        if type(pc) == "table" and type(pc.objects) == "table" then
+          table.insert(pc.objects, {
+            eventFlag = 65535,
+            index = celebi.pokecenter.objectIndex,
+            movement = 6, -- STANDING_DOWN
+            palette = 0,
+            radius = { x = 0, y = 0 },
+            script = 0,
+            scriptKey = cKeys.gift,
+            sight = 0,
+            sprite = celebi.pokecenter.sprite,
+            spriteId = 0,
+            type = 0,
+            x = celebi.pokecenter.coords.x,
+            y = celebi.pokecenter.coords.y,
+          })
+          counts.statics = counts.statics + 1
+        end
+        -- (c) Kurt: splice the branch rows after his opentext; the give and
+        -- gave flows live in mod-owned scripts (CL's KurtScript structure).
+        local kurt = scripts[celebi.kurt.scriptKey]
+        if type(kurt) == "table" then
+          for i, step in ipairs(kurt) do
+            if type(step) == "table" and step.op == "opentext" then
+              local splice = {
+                { op = "checkevent", event = flags.gave },
+                { op = "iftrue", script = cKeys.kurtGave },
+                { op = "checkevent", event = flags.canGive },
+                { op = "iftrue", script = cKeys.kurtGive },
+              }
+              for k, row in ipairs(splice) do
+                table.insert(kurt, i + k, row)
+              end
+              counts.statics = counts.statics + 1
+              break
+            end
+          end
+        end
+        scripts[cKeys.kurtGive] = {
+          -- CL .CanGiveGSBallToKurt: badge gate, then ask to examine the
+          -- ball; YES takes it (the gave flow returns it once examined).
+          { op = "writetext", text = cText .. "kurtWhat" },
+          { op = "waitbutton" },
+          { op = "writetext", text = cText .. "kurtNo" },
+          { op = "waitbutton" },
+          { op = "readvar", var = 0x07 }, -- VAR_BADGES
+          { op = "ifless", value = celebi.badgeGate, script = {
+            { op = "writetext", text = cText .. "kurtChecking" },
+            { op = "waitbutton" },
+            { op = "closetext" },
+            { op = "end" },
+          } },
+          { op = "yesorno" },
+          { op = "iftrue", script = cKeys.kurtGiveDecline }, -- NO keeps the ball
+          { op = "closetext" },
+          { op = "setevent", event = flags.gave },
+          { op = "takeitem", item = gsBall },
+          { op = "writetext", text = cText .. "kurtChecking" },
+          { op = "waitbutton" },
+          { op = "closetext" },
+          { op = "end" },
+        }
+        scripts[cKeys.kurtGiveDecline] = { { op = "closetext" }, { op = "end" } }
+        scripts[cKeys.kurtGave] = {
+          -- CL .NotMakingBalls, simplified: Kurt returns the ball in-house
+          -- (CL has him leave town and hand it back in an Azalea scene) and
+          -- sets the forest restless so the shrine wakes.
+          { op = "writetext", text = cText .. "kurtShake" },
+          { op = "waitbutton" },
+          { op = "closetext" },
+          { op = "setevent", event = flags.restless },
+          { op = "clearevent", event = flags.canGive },
+          { op = "clearevent", event = flags.gave },
+          { op = "verbosegiveitem", item = gsBall },
+          { op = "end" },
+        }
+        counts.statics = counts.statics + 1 -- kurt give
+        counts.statics = counts.statics + 1 -- kurt gave
+        -- (d) Ilex shrine: repoint the (8,22) bg_event to the shrine script.
+        local shrineMap = maps[celebi.shrine.mapId]
+        if type(shrineMap) == "table" and type(shrineMap.bgEvents) == "table" then
+          for _, bg in ipairs(shrineMap.bgEvents) do
+            if type(bg) == "table" and bg.scriptKey == celebi.shrine.scriptKey then
+              bg.scriptKey = cKeys.shrine
+              counts.statics = counts.statics + 1
+              break
+            end
+          end
+        end
+        scripts[cKeys.shrine] = {
+          -- Quiet until Kurt wakes the forest; then the ball is consumed for
+          -- the one-shot Celebi battle (CL IlexForestShrineScript).
+          { op = "checkevent", event = flags.restless },
+          { op = "iftrue", script = {
+            { op = "checkitem", item = gsBall },
+            { op = "iftrue", script = {
+              { op = "opentext" },
+              { op = "writetext", text = cText .. "shrinePrompt" },
+              { op = "waitbutton" },
+              { op = "yesorno" },
+              { op = "iftrue", script = cKeys.shrineBattle },
+              { op = "closetext" },
+              { op = "end" },
+            } },
+            { op = "jumptext", text = celebi.shrine.quietText },
+          } },
+          { op = "jumptext", text = celebi.shrine.quietText },
+        }
+        scripts[cKeys.shrineBattle] = {
+          { op = "takeitem", item = gsBall },
+          { op = "clearevent", event = flags.restless },
+          { op = "opentext" },
+          { op = "writetext", text = cText .. "shrineInsert" },
+          { op = "waitbutton" },
+          { op = "closetext" },
+          { op = "loadwildmon", species = celebi.speciesIndex, level = celebi.level },
+          { op = "startbattle" },
+          { op = "reloadmapafterbattle" },
+          { op = "end" },
+        }
+        counts.statics = counts.statics + 1 -- shrine script (+battle)
+        -- (e) Ruins of Alph fallback: always-visible researcher, gated on
+        -- the got flag (no gold Ho-Oh-puzzle events to gate on).
+        scripts[cKeys.fallback] = {
+          { op = "faceplayer" },
+          { op = "opentext" },
+          { op = "checkevent", event = flags.got },
+          { op = "iftrue", script = cKeys.fallbackDone },
+          { op = "writetext", text = cText .. "fallback" },
+          { op = "verbosegiveitem", item = gsBall },
+          { op = "setevent", event = flags.got },
+          { op = "setevent", event = flags.canGive },
+          { op = "closetext" },
+          { op = "end" },
+        }
+        scripts[cKeys.fallbackDone] = { { op = "closetext" }, { op = "end" } }
+        counts.statics = counts.statics + 1
+        local ruins = maps[celebi.fallback.mapId]
+        if type(ruins) == "table" and type(ruins.objects) == "table" then
+          table.insert(ruins.objects, {
+            eventFlag = 65535,
+            index = celebi.fallback.objectIndex,
+            movement = 6, -- STANDING_DOWN
+            palette = 0,
+            radius = { x = 0, y = 0 },
+            script = 0,
+            scriptKey = cKeys.fallback,
+            sight = 0,
+            sprite = celebi.fallback.sprite,
+            spriteId = 0,
+            type = 0,
+            x = celebi.fallback.coords.x,
+            y = celebi.fallback.coords.y,
+          })
+          counts.statics = counts.statics + 1
         end
       end
     end

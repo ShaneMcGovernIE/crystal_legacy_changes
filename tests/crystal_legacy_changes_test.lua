@@ -2764,5 +2764,68 @@ T.check(not levelOnly.used, "wForceEvolution shuts the EVOLVE_LEVEL row")
 -- Pack routing answers the family before a target exists.
 T.eq(ItemEffects.partyAction("WATER_STONE"), "evolve", "pack menu routes to the party picker")
 
+-- Phase 4a #2 (HARD / HARDCORE): the difficulty flag rides the shared options
+-- block (Save.DEFAULT_OPTIONS), and the gates hang off the Difficulty module
+-- (core/gen2/Difficulty.lua) mirroring CL's ENGINE_HARD_MODE sweep.  Pin the
+-- default, the module's math, the trainer-party boost, and the item bans on
+-- the mod's own data path.  (IIFE so the main function stays under Lua's
+-- 200-local limit.)
+;(function()
+  local Save = require("src.core.gen2.Save")
+  T.eq(Save.DEFAULT_OPTIONS.difficulty, "normal",
+    "the options block defaults to NORMAL")
+  local Difficulty = require("src.core.gen2.Difficulty")
+  T.eq(Difficulty.level({ difficulty = "normal" }), 0, "normal is level 0")
+  T.eq(Difficulty.level({ difficulty = "hard" }), 1, "hard is level 1")
+  T.eq(Difficulty.level({ difficulty = "hardcore" }), 2, "hardcore is level 2")
+  T.check(Difficulty.isHard({ difficulty = "hard" }), "hard is hard")
+  T.check(Difficulty.isHardcore({ difficulty = "hardcore" }), "hardcore is hardcore")
+  T.check(Difficulty.isHard({ difficulty = "hardcore" }),
+    "hardcore implies hard")
+  T.eq(Difficulty.enemyBoost({ difficulty = "normal" }), 1,
+    "normal boosts nothing")
+  T.eq(Difficulty.enemyBoost({ difficulty = "hard" }), 1.15,
+    "hard boosts enemy stats 15%")
+  T.eq(Difficulty.enemyBoost({ difficulty = "hardcore" }), 1.30,
+    "hardcore boosts enemy stats 30%")
+
+  -- Trainers.party takes the options block (World passes game.options); the
+  -- boost lands on the six stats and HP follows, so a hard battle is tougher
+  -- without touching the roster rows themselves.
+  local Trainers = require("src.world.gen2.Trainers")
+  local roster = { roster = { { species = "PIKACHU", level = 25, moves = {} } } }
+  local normalParty = Trainers.party(data, roster, { difficulty = "normal" })
+  local hardParty = Trainers.party(data, roster, { difficulty = "hard" })
+  T.check(#normalParty == 1 and #hardParty == 1, "both difficulties build the party")
+  T.eq(hardParty[1].stats.attack,
+    math.floor(normalParty[1].stats.attack * 1.15),
+    "hard scales the enemy attack")
+  T.eq(hardParty[1].stats.hp, math.floor(normalParty[1].stats.hp * 1.15),
+    "hard scales the enemy HP")
+  T.eq(hardParty[1].maxHp, hardParty[1].stats.hp, "maxHp follows the scaled HP")
+  T.eq(hardParty[1].hp, hardParty[1].stats.hp, "trainer mons enter at full HP")
+
+  -- Item gates: hardcore closes the bag in trainer battles (BattleState),
+  -- refuses revives, and refuses vitamins/candy on fainted mons; the no-effect
+  -- line is CL's ItemsCantBeUsedText stand-in.
+  local battleMon = Mon.new(data, "PIKACHU", 25, { moves = {} })
+  battleMon.hp = 0
+  local revived = ItemEffects.useOnMon("REVIVE", battleMon, data,
+    { difficulty = "hardcore" })
+  T.check(not revived.used, "hardcore refuses the revive")
+  T.eq(revived.text, ItemEffects.TEXT_NO_EFFECT, "refusal is the no-effect line")
+  local normalRevive = ItemEffects.useOnMon("REVIVE", battleMon, data,
+    { difficulty = "normal" })
+  T.check(normalRevive.used, "normal still revives")
+  battleMon.hp = 0
+  local candied = ItemEffects.useOnMon("RARE_CANDY", battleMon, data,
+    { difficulty = "hardcore" })
+  T.check(not candied.used, "hardcore refuses the candy on a fainted mon")
+  local alive = Mon.new(data, "PIKACHU", 25, { moves = {} })
+  local candyAlive = ItemEffects.useOnMon("RARE_CANDY", alive, data,
+    { difficulty = "hardcore" })
+  T.check(candyAlive.used, "the candy still works on an alive mon")
+end)()
+
 run.release()
 T.finish("crystal_legacy_changes")

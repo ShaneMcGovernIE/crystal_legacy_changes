@@ -649,6 +649,163 @@ local function applyBerryShop(mod, data, counts, martsData)
   mod.exports.berryShop = { data = data }
 end
 
+-- Phase 3d: Goldenrod City Move Tutor (CL maps/GoldenrodCity.asm:52-165).
+-- CL's tutor is a MAPCALLBACK_OBJECTS NPC who appears after 7 Badges with a
+-- Coin Case and hides once taught today; gold has none, so the mod appends an
+-- always-visible POKEFAN_M at CL's (12,22) and enforces every gate in the talk
+-- script.  The 4-option menu is VM rows (verticalmenu -> scriptVar = choice);
+-- a daily-gate command stops the script when today's lesson is used up, and a
+-- teach command parks the VM coroutine on the party picker, gates the chosen
+-- mon against CL's tmhm table (data/tutor_moves.lua -- NEVER species.tmhm,
+-- that is the egg-move list), and hands off to Game2:learnMoveOn.  The async
+-- onDone takes the 1000 coins, sets the daily flag, and says CL's farewell.
+local function applyMoveTutor(mod, data, counts, tutorMoves)
+  local prefix = "crystal_legacy_changes:"
+  -- Species sets per move, from CL base_stats tmhm lines (conv_move_tutor.py).
+  local sets = {}
+  for moveName, list in pairs(tutorMoves.tutor_moves) do
+    local set = {}
+    for _, species in ipairs(list) do set[species] = true end
+    sets[moveName] = set
+  end
+  -- CL text rows (plain \n line breaks; the port's TextBox paginates).
+  for key, text in pairs(data.texts) do
+    mod.content.text:register(prefix .. key, text)
+  end
+  -- Daily gate: stop the script ("come back tomorrow") when today's lesson is
+  -- used up; return nil to fall through to the greet otherwise.  The handler's
+  -- return feeds runCmd ("end" halts the list, nil continues at the next row).
+  local function moveTutorDaily(ctx)
+    local vm = ctx and ctx.vm
+    if not vm then return "end" end
+    local save = mod.game and mod.game.save
+    if save and save.dailyFlags and save.dailyFlags[data.dailyKey] then
+      vm:showText(prefix .. "daily")
+      return "end"
+    end
+    return nil
+  end
+  -- Teach flow: party picker -> species gate -> KnowsMove gate -> learnMoveOn.
+  local function moveTutorTeach(ctx, moveName)
+    local vm = ctx and ctx.vm
+    if not vm then return "end" end
+    local game = mod.game
+    local save = game and game.save
+    if not (game and save) then return "end" end
+    if save.dailyFlags and save.dailyFlags[data.dailyKey] then
+      vm:showText(prefix .. "daily")
+      return "end"
+    end
+    -- Party-picker bridge: {kind="mod_party_picker"} is unknown to Vm:resume's
+    -- chain, so the coroutine parks with self.pending set; the Gen2PartyMenu
+    -- onChoose calls vm:resume(mon) (nil on cancel) to drive it forward.
+    local chosen = coroutine.yield({ kind = "mod_party_picker" })
+    if not chosen then return "end" end
+    local mon = chosen
+    -- CL MoveTutor special contract: refuse species CL cannot teach this move
+    -- and mons that already know it.  Mod-side species table only.
+    local set = sets[moveName]
+    if not (set and set[mon.species]) then
+      vm:showText(prefix .. "incompatible")
+      return "end"
+    end
+    for _, move in ipairs(mon.moves or {}) do
+      if move.id == moveName then
+        vm:showText(prefix .. "incompatible")
+        return "end"
+      end
+    end
+    vm:showText(prefix .. "understood")
+    -- The engine's own TM-teach path (async screens).  onDone fires after the
+    -- script has ended, so the coin take, daily flag and farewell go through
+    -- game:say (push + callback, coroutine-free).
+    game:learnMoveOn(mon, moveName, function(learned)
+      if not learned then return end
+      if save.player then
+        save.player.coins = math.max(0, (save.player.coins or 0) - data.cost)
+      end
+      save.dailyFlags = save.dailyFlags or {}
+      save.dailyFlags[data.dailyKey] = true
+      game:say(data.texts.farewell)
+    end)
+    return "end"
+  end
+  mod.commands:register(prefix .. "move_tutor_daily", moveTutorDaily)
+  mod.commands:register(prefix .. "move_tutor_teach", moveTutorTeach)
+
+  -- Inline refusal/teach branch lists; each ends itself (runCmd semantics).
+  local function refuse(textKey)
+    return {
+      { op = "writetext", text = prefix .. textKey },
+      { op = "waitbutton" },
+      { op = "closetext" },
+      { op = "end" },
+    }
+  end
+  local function teach(moveName)
+    return {
+      { prefix .. "move_tutor_teach", moveName },
+      { op = "waitbutton" },
+      { op = "closetext" },
+      { op = "end" },
+    }
+  end
+  -- checkcoins/takecoins amounts ride args as a little-endian dw.
+  local coinArgs = { data.cost % 256, math.floor(data.cost / 256) }
+
+  mod.events:on("mods.loaded", function(payload)
+    local target = payload.data
+    local scripts = target.gen2Scripts
+    local maps = target.gen2Maps
+    if type(scripts) ~= "table" or type(maps) ~= "table" then return end
+    -- Append the tutor object in place (the berry clerk pattern); eventFlag
+    -- 65535 = always visible, every gate lives in the talk script below.
+    local map = maps[data.map]
+    if type(map) == "table" and type(map.objects) == "table" then
+      table.insert(map.objects, data.tutor)
+      counts.moveTutorObjects = (counts.moveTutorObjects or 0) + 1
+    end
+    -- CL MoveTutorScript re-created as VM rows, with CL's callback gates
+    -- (badges / Coin Case / daily) moved into the talk.  Branch targets are
+    -- inline { ... } lists (runCmd).
+    scripts[data.scriptKey] = {
+      { op = "faceplayer" },
+      { op = "opentext" },
+      -- CL callback gates, moved into the talk (always-visible object).
+      { op = "readvar", var = 0x07 }, -- VAR_BADGES
+      { op = "ifless", value = data.badgeGate, script = refuse("badge") },
+      { args = { data.coinCaseItem }, op = "checkitem" }, -- COIN_CASE
+      { op = "iffalse", script = refuse("coinCase") },
+      { prefix .. "move_tutor_daily" }, -- returns "end" once taught today
+      -- CL MoveTutorScript body (faceplayer/opentext already done).
+      { op = "writetext", text = prefix .. "greet" },
+      { op = "yesorno" },
+      { op = "iffalse", script = refuse("no") },
+      { op = "writetext", text = prefix .. "coinsAsk" },
+      { op = "yesorno" },
+      { op = "iffalse", script = refuse("tooBad") },
+      { args = coinArgs, op = "checkcoins" }, -- >= 1000 coins
+      { op = "ifequal", value = 2, script = refuse("insufficient") }, -- HAVE_LESS
+      { op = "special", id = 78 }, -- DisplayCoinCaseBalance
+      { op = "writetext", text = prefix .. "which" },
+      { op = "loadmenu", menu = data.menu },
+      { op = "verticalmenu" },
+      { op = "closewindow" },
+      { op = "ifequal", value = 1, script = teach("FLAMETHROWER") },
+      { op = "ifequal", value = 2, script = teach("THUNDERBOLT") },
+      { op = "ifequal", value = 3, script = teach("ICE_BEAM") },
+      { op = "end" }, -- CANCEL
+    }
+    counts.moveTutorScripts = (counts.moveTutorScripts or 0) + 1
+  end)
+  mod.exports.moveTutor = {
+    data = data,
+    daily = moveTutorDaily,
+    teach = moveTutorTeach,
+  }
+  return counts
+end
+
 return function(mod)
   local counts = applyRebalance(mod, loadSibling(mod, "rebalance.lua"))
   counts.learnsets = applyLearnsets(mod, loadSibling(mod, "learnsets.lua"))
@@ -664,5 +821,7 @@ return function(mod)
   applyFossils(mod, loadSibling(mod, "data/fossils.lua"), counts)
   applyBerryShop(mod, loadSibling(mod, "data/berry_shop.lua"), counts,
     loadSibling(mod, "data/marts.lua"))
+  applyMoveTutor(mod, loadSibling(mod, "data/move_tutor.lua"), counts,
+    loadSibling(mod, "data/tutor_moves.lua"))
   mod.exports.rebalance = counts
 end

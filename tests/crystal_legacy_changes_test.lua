@@ -225,6 +225,69 @@ T.eq(encounters:get("fishGroups").FISHGROUP_SHORE.index, 1,
 T.eq(encounters:get("fishGroups").FISHGROUP_SHORE.chance, 128,
   "Shore rod group keeps its 128/256 hook chance")
 
+-- Phase 2 encounters step: TSP doc feature coverage -- Dark Cave Larvitar,
+-- the Route 26/27 time-of-day starters, the Burned Tower Houndour/Slugma
+-- rework, the Mt. Silver room rework, and the swarm-table replacement.
+local function slot(encounters, kind, mapId, time, i)
+  return encounters:get(kind)[mapId].slots[time][i]
+end
+
+T.eq(slot(encounters, "grass", "DARK_CAVE_VIOLET_ENTRANCE", "MORN", 6).species,
+  "LARVITAR", "Dark Cave morning slot 6 is Larvitar")
+T.eq(slot(encounters, "grass", "DARK_CAVE_VIOLET_ENTRANCE", "MORN", 6).level, 2,
+  "Dark Cave Larvitar is level 2")
+T.eq(slot(encounters, "grass", "DARK_CAVE_VIOLET_ENTRANCE", "DAY", 6).species,
+  "LARVITAR", "Dark Cave day slot 6 is Larvitar")
+T.eq(slot(encounters, "grass", "DARK_CAVE_VIOLET_ENTRANCE", "NITE", 6).species,
+  "LARVITAR", "Dark Cave night slot 6 is Larvitar")
+
+T.eq(slot(encounters, "grass", "ROUTE_26", "MORN", 7).species, "BULBASAUR",
+  "Route 26 morning slot 7 is Bulbasaur")
+T.eq(slot(encounters, "grass", "ROUTE_26", "DAY", 7).species, "CHARMANDER",
+  "Route 26 day slot 7 is Charmander")
+T.eq(slot(encounters, "grass", "ROUTE_26", "NITE", 7).species, "SQUIRTLE",
+  "Route 26 night slot 7 is Squirtle")
+T.eq(slot(encounters, "grass", "ROUTE_26", "MORN", 7).level, 5,
+  "Route 26 starter is level 5")
+T.eq(slot(encounters, "grass", "ROUTE_27", "MORN", 5).species, "CHIKORITA",
+  "Route 27 morning slot 5 is Chikorita")
+T.eq(slot(encounters, "grass", "ROUTE_27", "DAY", 5).species, "CYNDAQUIL",
+  "Route 27 day slot 5 is Cyndaquil")
+T.eq(slot(encounters, "grass", "ROUTE_27", "NITE", 5).species, "TOTODILE",
+  "Route 27 night slot 5 is Totodile")
+
+T.eq(slot(encounters, "grass", "BURNED_TOWER_1F", "MORN", 3).species, "HOUNDOUR",
+  "Burned Tower morning slot 3 is Houndour")
+T.eq(slot(encounters, "grass", "BURNED_TOWER_1F", "MORN", 5).species, "SLUGMA",
+  "Burned Tower morning slot 5 is Slugma")
+T.eq(slot(encounters, "grass", "BURNED_TOWER_1F", "DAY", 5).species, "HOUNDOUR",
+  "Burned Tower day slot 5 is Houndour")
+T.eq(slot(encounters, "grass", "BURNED_TOWER_1F", "NITE", 4).species, "ZUBAT",
+  "Burned Tower night slot 4 is Zubat -- Zubat is night-only")
+
+T.eq(slot(encounters, "grass", "SILVER_CAVE_OUTSIDE", "MORN", 5).species,
+  "VENUSAUR", "Mt. Silver outside morning slot 5 is Venusaur")
+T.eq(slot(encounters, "grass", "SILVER_CAVE_OUTSIDE", "MORN", 5).level, 50,
+  "Mt. Silver Venusaur is level 50")
+T.eq(slot(encounters, "grass", "SILVER_CAVE_ROOM_3", "MORN", 4).level, 70,
+  "Mt. Silver Room 3 morning slot 4 is level 70")
+T.eq(slot(encounters, "grass", "SILVER_CAVE_ROOM_3", "MORN", 7).species, "PUPITAR",
+  "Mt. Silver Room 3 morning slot 7 is Pupitar")
+T.eq(slot(encounters, "grass", "SILVER_CAVE_ROOM_3", "MORN", 7).level, 40,
+  "Mt. Silver Room 3 Pupitar is level 40")
+
+-- The swarm kinds are complete replacements: Crystal keeps only the Dark
+-- Cave and Route 35 land swarms and ships NO surf swarms, so Gold's removed
+-- rows (Route 38, Mount Mortar) must not survive the merge.
+T.eq(encounters:get("swarmGrass").MOUNT_MORTAR_1F_OUTSIDE, nil,
+  "Mount Mortar's land swarm is removed")
+T.eq(encounters:get("swarmGrass").ROUTE_38, nil,
+  "Route 38's swarm is removed")
+T.eq(encounters:get("swarmWater").MOUNT_MORTAR_1F_OUTSIDE, nil,
+  "Mount Mortar's surf swarm is removed")
+T.eq(next(encounters:get("swarmWater")), nil,
+  "Crystal ships no surf swarms")
+
 T.eq(trainers:get("FALKNER").baseMoney, 25, "Falkner pays out 25 base money")
 T.eq(trainers:get("FALKNER").encounterMusic, "Music_LookYoungster",
   "Falkner keeps his encounter theme")

@@ -21,11 +21,14 @@ content registries at load time.
 ## Deliberately not included yet
 
 - Wild encounters and trainer parties (PLAN.md Phases 1–2).
-- Team Rocket, Celebi, fossil, gift, mart, Move Tutor, Battle Tower, and
-  rematch story changes (PLAN.md Phase 3).
+- Battle Tower, rematch story changes, and remaining Team Rocket content
+  (PLAN.md Phase 3).
 - Exact Triple Kick 20/60/120 scaling. Gold's native effect currently owns
   that calculation, so changing only the move record would claim the wrong
   behavior.
+- Phase 4 overworld art gaps, never faked: Rocket Base B2F's six electrodes
+  still render Gold's VOLTORB art (no SPRITE_ELECTRODE overworld art ships),
+  and Rocket Base B3F's Murkrow still reuses Gold's SPRITE_MOLTRES bird art.
 
 The document's `Faint Attack` accuracy is written as 101%. The engine schema
 allows at most 100%, so this implementation uses 100% as the valid equivalent.

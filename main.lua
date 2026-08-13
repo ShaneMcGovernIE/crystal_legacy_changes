@@ -1048,6 +1048,82 @@ local function applyRocketTower(mod, data, counts)
   mod.exports.rocketTower = { data = data }
 end
 
+-- Phase 3d1: Team Rocket Base B1F-B3F (data/rocket_base.lua).
+-- Gold's Base maps already match CL almost everywhere (scripts, coordEvents,
+-- trainers); only the 9 deltas + the executive sprite land here.  All matches
+-- are in-place mutations keyed on stable map + eventFlag (itemballs) or
+-- sprite + x + y (NPCs), so re-running is a no-op.  The one appended object
+-- (UltraBall) is guarded by the one-per-session flag like rocketTower.
+local function applyRocketBase(mod, data, counts)
+  counts.rocketBase = { items = 0, objects = 0, sprites = 0, added = 0 }
+
+  mod.events:on("mods.loaded", function(payload)
+    local target = payload and payload.data
+    if not target then return end
+
+    -- One-per-session guard: hot reload re-runs entry chunks; tests re-fire
+    -- mods.loaded.  Deltas are idempotent anyway (matches are from-state), but
+    -- the appended UltraBall must not be inserted twice.
+    if mod._rocketBaseInstalled then return end
+    mod._rocketBaseInstalled = true
+
+    local maps = type(target.gen2Maps) == "table" and target.gen2Maps
+    if type(maps) ~= "table" then return end
+
+    -- (a) Itemball item repoints (match by eventFlag, unique per map).
+    for _, swap in ipairs(data.itemSwaps or {}) do
+      local map = maps[swap.map]
+      if type(map) == "table" and type(map.objects) == "table" then
+        for _, obj in ipairs(map.objects) do
+          if obj.eventFlag == swap.eventFlag
+            and type(obj.itemball) == "table" and obj.itemball.item ~= swap.item then
+            obj.itemball.item = swap.item
+            counts.rocketBase.items = counts.rocketBase.items + 1
+          end
+        end
+      end
+    end
+
+    -- (b) NPC position/sight repoints (match by sprite + x + y).
+    for _, move in ipairs(data.objectMoves or {}) do
+      local map = maps[move.map]
+      if type(map) == "table" and type(map.objects) == "table" then
+        for _, obj in ipairs(map.objects) do
+          if obj.sprite == move.sprite and obj.x == move.x and obj.y == move.y then
+            obj.x, obj.y = move.toX, move.toY
+            if move.sight ~= nil then obj.sight = move.sight end
+            counts.rocketBase.objects = counts.rocketBase.objects + 1
+          end
+        end
+      end
+    end
+
+    -- (c) Sprite swaps (executive at (8,3) wears Archer's sprite).
+    for _, swap in ipairs(data.spriteSwaps or {}) do
+      local map = maps[swap.map]
+      if type(map) == "table" and type(map.objects) == "table" then
+        for _, obj in ipairs(map.objects) do
+          if obj.sprite == swap.sprite and obj.x == swap.x and obj.y == swap.y then
+            obj.sprite = swap.to
+            counts.rocketBase.sprites = counts.rocketBase.sprites + 1
+          end
+        end
+      end
+    end
+
+    -- (d) Appended objects (UltraBall; index = its array position).
+    for _, add in ipairs(data.addedObjects or {}) do
+      local map = maps[add.map]
+      if type(map) == "table" and type(map.objects) == "table" then
+        table.insert(map.objects, add.object)
+        counts.rocketBase.added = counts.rocketBase.added + 1
+      end
+    end
+  end)
+
+  mod.exports.rocketBase = { data = data }
+end
+
 -- Phase 3d: Goldenrod City Move Tutor (CL maps/GoldenrodCity.asm:52-165).
 -- CL's tutor is a MAPCALLBACK_OBJECTS NPC who appears after 7 Badges with a
 -- Coin Case and hides once taught today; gold has none, so the mod appends an
@@ -1221,6 +1297,7 @@ return function(mod)
   applyBerryShop(mod, loadSibling(mod, "data/berry_shop.lua"), counts,
     loadSibling(mod, "data/marts.lua"))
   applyRocketTower(mod, loadSibling(mod, "data/rocket_tower.lua"), counts)
+  applyRocketBase(mod, loadSibling(mod, "data/rocket_base.lua"), counts)
   applyMoveTutor(mod, loadSibling(mod, "data/move_tutor.lua"), counts,
     loadSibling(mod, "data/tutor_moves.lua"))
   mod.exports.rebalance = counts

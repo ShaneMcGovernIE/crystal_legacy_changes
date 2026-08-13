@@ -115,11 +115,26 @@ end
 -- per map/group entry against the imported cache.  The data file wraps the
 -- kinds in a single `kinds` namespace key so modkit's dump check does not
 -- mistake the whole-table replacement for a re-shipped ROM extract.
+--
+-- The swarm kinds are complete replacements, not deltas: Crystal keeps only
+-- the Dark Cave and Route 35 land swarms and ships NO surf swarms
+-- (swarmWater = {}), so Gold's removed rows (Route 38, Mount Mortar) must
+-- not survive.  A deep-merge patch would keep those rows alive; override
+-- swaps the whole kind table instead.
+local SWARM_OVERRIDE_KINDS = {
+  swarmGrass = true,
+  swarmWater = true,
+}
+
 local function applyEncounters(mod, data)
   local count = 0
   for kind, rows in pairs(data.kinds or data) do
     if kind ~= "source" and kind ~= "generation" then
-      mod.content.encounters:patch(kind, rows)
+      if SWARM_OVERRIDE_KINDS[kind] then
+        mod.content.encounters:override(kind, rows)
+      else
+        mod.content.encounters:patch(kind, rows)
+      end
       count = count + 1
     end
   end

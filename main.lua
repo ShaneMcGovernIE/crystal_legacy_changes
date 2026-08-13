@@ -245,6 +245,7 @@ end
 -- in-game, opts.data under the SDK).
 local function applyStatics(mod, data, counts)
   counts.statics = 0
+  local birds = data.birds
 
   -- Dragon's Den Dratini Master (Phase 3b).  Gold's B1F shrine is a plain
   -- read bgEvent whose script row is a single jumptext; we replace that row
@@ -303,6 +304,18 @@ local function applyStatics(mod, data, counts)
     mod.exports.statics = { master = masterVerb, hasBadge = hasBadge, data = data }
   end
 
+  -- Kanto bird cries: CL's text is "Gyaoo!" for all three (Moltres/Articuno/
+  -- Zapdos scripts in maps/VictoryRoad.asm, maps/Route20.asm,
+  -- maps/Route10North.asm).
+  if type(birds) == "table" then
+    for _, bird in ipairs(birds) do
+      if type(bird) == "table" and type(bird.textKey) == "string"
+        and type(bird.text) == "string" then
+        mod.content.text:register(bird.textKey, bird.text)
+      end
+    end
+  end
+
   mod.events:on("mods.loaded", function(payload)
     local target = payload and payload.data
     if not target then return end
@@ -350,6 +363,79 @@ local function applyStatics(mod, data, counts)
         { op = "end" },
       }
       counts.statics = counts.statics + 1
+    end
+
+    -- Kanto legendary birds (Phase 3c).  CL releases each bird as a one-time
+    -- L60 wild encounter after its quest moment (Blaine -> Moltres, Blue ->
+    -- Articuno, Machine Part returned -> Zapdos); gold has none of it.  CL's
+    -- event is one EVENT_CAUGHT_<BIRD> flag per bird, seeded SET at NewGame
+    -- so the static stays hidden until its release: we (a) seed the flags via
+    -- gen2InitialEvents, (b) splice the clearevent into the release script at
+    -- the anchor row, (c) register the catch script (opentext / "Gyaoo!" /
+    -- cry / loadwildmon 60 / startbattle / disappear / setevent /
+    -- reloadmapafterbattle) and (d) spawn the Moltres object (gold ships
+    -- SPRITE_MOLTRES; Articuno and Zapdos are wired but their objects wait
+    -- for Phase 4 overworld art — the object rows are in data.birds).  The
+    -- engine's disappear op re-sets the object's eventFlag, so a caught bird
+    -- stays gone on later map loads.
+    if type(birds) == "table" then
+      local initial = target.gen2InitialEvents
+      if type(initial) == "table" and type(initial.flags) == "table" then
+        for _, bird in ipairs(birds) do
+          if type(bird) == "table" and type(bird.flag) == "number" then
+            local known = false
+            for _, id in ipairs(initial.flags) do
+              if id == bird.flag then known = true break end
+            end
+            if not known then initial.flags[#initial.flags + 1] = bird.flag end
+          end
+        end
+      end
+      local maps = target.gen2Maps
+      for _, bird in ipairs(birds) do
+        if type(bird) == "table" and type(bird.scriptKey) == "string"
+          and type(bird.speciesIndex) == "number" and type(bird.flag) == "number" then
+          local rows = {
+            { op = "opentext" },
+            { op = "writetext", text = bird.textKey },
+            { op = "cry", id = bird.speciesIndex },
+            { op = "waitbutton" },
+            { op = "closetext" },
+            { op = "loadwildmon", species = bird.speciesIndex, level = bird.level },
+            { op = "startbattle" },
+            { op = "disappear", object = bird.objectIndex },
+            { op = "setevent", event = bird.flag },
+            { op = "reloadmapafterbattle" },
+            { op = "end" },
+          }
+          if bird.faceplayer then
+            table.insert(rows, 1, { op = "faceplayer" })
+          end
+          scripts[bird.scriptKey] = rows
+          counts.statics = counts.statics + 1
+          for _, seam in ipairs(bird.seams or {}) do
+            local row = scripts[seam.scriptKey]
+            if type(row) == "table" then
+              for i, step in ipairs(row) do
+                if type(step) == "table" and step.op == seam.afterOp
+                  and (seam.afterEvent == nil or step.event == seam.afterEvent) then
+                  table.insert(row, i + 1, { op = "clearevent", event = bird.flag })
+                  counts.statics = counts.statics + 1
+                  break
+                end
+              end
+            end
+          end
+          if type(bird.object) == "table" and type(bird.object.mapId) == "string"
+            and type(maps) == "table" then
+            local map = maps[bird.object.mapId]
+            if type(map) == "table" and type(map.objects) == "table" then
+              table.insert(map.objects, bird.object)
+              counts.statics = counts.statics + 1
+            end
+          end
+        end
+      end
     end
 
     local gc = data.gameCorner

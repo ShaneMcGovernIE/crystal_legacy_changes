@@ -10,7 +10,7 @@ step. `PLAN.md` is the 6-phase roadmap to 1.0; work follows it.
   `mod:read` + `load` + `pcall` (the sandbox-sanctioned pattern), resolves doc
   names to ids by iterating the registries (no ROM-derived ids shipped), then
   patches. Counts land on `mod.exports.rebalance`.
-- `rebalance.lua` — 88 of 89 documented move rows, 48 species baseStats,
+- `rebalance.lua` — 89 of 89 documented move rows, 48 species baseStats,
   Ghost/Dark type categories. No `require`s.
 - `learnsets.lua` / `tmhm.lua` — GENERATED from the Crystal Legacy v1.3 Google
   Sheet. Do not hand-edit rows without noting it; the regenerating converter
@@ -53,7 +53,6 @@ No output = clean. `mod.storage` is irrelevant here: the mod persists nothing.
 
 ## Known fidelity gaps (keep README/PLAN in sync)
 
-- Sacred Fire missing (1 doc row) — patch it or document the omission.
 - Triple Kick 20/60/120 scaling is engine-owned; Faint Attack 101% → 100%.
 - Encounters, trainers, marts, evolutions, story: not implemented yet
   (PLAN.md Phases 1–3).

@@ -81,6 +81,7 @@ end
 -- every encounter/trainer species already resolves.
 local encountersData = dofile("mods/crystal_legacy_changes/data/encounters.lua")
 local trainersData = dofile("mods/crystal_legacy_changes/data/trainers.lua")
+local martsData = dofile("mods/crystal_legacy_changes/data/marts.lua")
 
 local species, moves, items, music = {}, {}, {}, {}
 local function collectRefs(root, map)
@@ -106,6 +107,12 @@ collectRefs(trainersData, {
   item = items, items = items,
   encounterMusic = music,
 })
+-- Mart shelves are plain item-id arrays under each MART_* key.
+for _, shelf in pairs(martsData.marts or {}) do
+  for _, id in ipairs(shelf) do
+    items[id] = true
+  end
+end
 
 -- The fixture has no audio namespace at all; the music registry backs
 -- trainer encounter music.
@@ -192,6 +199,22 @@ local function seedSwarmRows()
   }
 end
 seedSwarmRows()
+
+-- The mart patch rides the mods.loaded event and swaps the 34 gold
+-- positional shelves in place, preserving bargain.  Seed a gold-shaped base
+-- with junk shelves so a no-op or deep-merge patch would visibly fail: the
+-- CL shelves must land on the exact gold indices and the junk must vanish.
+local function seedGoldMarts()
+  local lists = {}
+  for i = 1, 34 do
+    lists[i] = { "SEEDED_JUNK_" .. i }
+  end
+  data.gen2Marts = {
+    bargain = { { item = "POTION", price = 300 } },
+    lists = lists,
+  }
+end
+seedGoldMarts()
 
 local run = T.sdk.loadMod("mods/crystal_legacy_changes", {
   data = data,
@@ -451,6 +474,72 @@ T.eq(export.rebalance.encounters, 10,
   "exports report all ten encounter kinds patched")
 T.eq(export.rebalance.trainers, 70,
   "exports report all 70 trainer classes patched")
+T.eq(export.rebalance.marts, 34,
+  "exports report all 34 gold mart shelves replaced")
+T.eq(export.rebalance.clOnly, 5,
+  "exports report the five CL-only marts held back")
+
+-- Phase 2 marts step: there is no marts content registry -- the engine seeds
+-- game.data.gen2Marts = { bargain, lists = {34 gold-positional shelves} } and
+-- World/MartMenu read it by reference, so the mod rides mods.loaded and swaps
+-- the shelves in place.  The fixture seeded junk shelves + a bargain above; a
+-- no-op or deep-merge patch would keep the junk and never land CL stock on
+-- the exact gold indices, so the assertions below pin the in-place swap.
+local marts = data.gen2Marts
+T.check(type(marts) == "table", "gen2Marts survives the load")
+T.check(type(marts.lists) == "table", "gen2Marts.lists survives the load")
+T.eq(#marts.lists, 34, "all 34 gold mart slots are present")
+T.eq(marts.bargain[1].item, "POTION", "bargain item is preserved")
+T.eq(marts.bargain[1].price, 300, "bargain price is preserved")
+
+local function shelf(i)
+  return table.concat(marts.lists[i] or {}, ",")
+end
+local function clShelf(name)
+  return table.concat(martsData.marts[name] or {}, ",")
+end
+T.eq(shelf(1), clShelf("MART_CHERRYGROVE"),
+  "slot 1 is the Cherrygrove CL shelf")
+T.eq(shelf(2), clShelf("MART_CHERRYGROVE_DEX"),
+  "slot 2 is the Cherrygrove Dex CL shelf")
+T.eq(shelf(3), clShelf("MART_VIOLET"),
+  "slot 3 is the Violet CL shelf")
+T.eq(shelf(6), clShelf("MART_GOLDENROD_2F_1"),
+  "slot 6 is the Goldenrod 2F CL shelf")
+T.eq(shelf(16), clShelf("MART_MAHOGANY_1"),
+  "slot 16 is the Mahogany 1F CL shelf")
+T.eq(shelf(17), clShelf("MART_MAHOGANY_2"),
+  "slot 17 is the Mahogany 2F CL shelf")
+T.eq(shelf(26), clShelf("MART_CELADON_3F"),
+  "slot 26 is the Celadon 3F CL shelf")
+T.eq(shelf(27), clShelf("MART_CELADON_4F"),
+  "slot 27 is the Celadon 4F CL shelf")
+T.eq(shelf(28), clShelf("MART_CELADON_5F_1"),
+  "slot 28 is the Celadon 5F CL shelf")
+T.eq(shelf(34), clShelf("MART_UNDERGROUND"),
+  "slot 34 is the Underground herb shelf")
+T.check(marts.lists[17][1] == "RAGECANDYBAR"
+  and marts.lists[17][2] == "METAL_COAT"
+  and marts.lists[17][3] == "UP_GRADE"
+  and marts.lists[17][4] == "BRICK_PIECE",
+  "Mahogany sells the four evolution items in CL order")
+
+local junkSeen = false
+local leakSeen = false
+for i = 1, 34 do
+  for _, item in ipairs(marts.lists[i] or {}) do
+    if item:sub(1, 12) == "SEEDED_JUNK_" then junkSeen = true end
+    -- CL-only marts (BERRYS, BERRYS_2, CELADON_3F_2, CELADON_5F_1_2,
+    -- CELADON_5F_2_2) have no gold slot (NUM_MARTS = 34); their unique stock
+    -- must never land on any reachable shelf.
+    if item == "GOLD_BERRY" or item == "TM_EARTHQUAKE"
+      or item == "TM_TOXIC" or item == "TM_RETURN" then
+      leakSeen = true
+    end
+  end
+end
+T.check(not junkSeen, "no seeded junk survives in any of the 34 slots")
+T.check(not leakSeen, "no CL-only mart stock leaks into a gold slot")
 
 run.release()
 T.finish("crystal_legacy_changes")

@@ -31,8 +31,8 @@ def parse_mart_constants(constants_dir: Path) -> list[str]:
     return names
 
 
-def parse_marts_asm(items_dir: Path) -> dict[str, list[str]]:
-    """Return { label: [item_id, ...] } for every MartXxx: block."""
+def parse_marts_asm(items_dir: Path) -> tuple[list[str], dict[str, list[str]]]:
+    """Return (pointer_table_labels, { label: [item_id, ...] })."""
     src = (items_dir / "marts.asm").read_text()
     # pointer table order (dw MartXxx lines following `Marts:`; tab-indented).
     # Labels are CamelCase; `[A-Z]` after "Mart" excludes the `Marts:` header.
@@ -66,7 +66,7 @@ def main() -> int:
         return 2
     cl_dir = Path(sys.argv[1])
     out_path = Path(sys.argv[2])
-    gold_marx = Path(sys.argv[3]) if len(sys.argv) > 3 else None
+    gold_marts = Path(sys.argv[3]) if len(sys.argv) > 3 else None
 
     constants = parse_mart_constants(cl_dir / "constants")
     table, blocks = parse_marts_asm(cl_dir / "data" / "items")
@@ -86,8 +86,8 @@ def main() -> int:
         print(f"note: blocks not in pointer table: {extra}")  # DefaultMart etc.
 
     # ---- item id sanity vs gold items registry (if provided) ----
-    if gold_marx:
-        reg = (gold_marx.parent / "items.lua").read_text()
+    if gold_marts:
+        reg = (gold_marts.parent / "items.lua").read_text()
         all_items = set(re.findall(r'"([A-Z_0-9]+)"', reg))
         missing_items = sorted(
             {i for lbl in table for i in blocks[lbl]} - all_items

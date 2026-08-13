@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.6.0] - 2026-08-13
+
+### Added
+
+- Encounters data patch (`mod.content.encounters` kind patches from
+  `data/encounters.lua`): Crystal Legacy wild Pokemon changes from TSP's
+  design document.
+  - Larvitar in Dark Cave, starter rematches on Routes 26/27 (time-of-day
+    slots), Houndour/Slugma in Burned Tower, Mt. Silver rework.
+  - Swarm grass override applied at load time (main.lua).
+- 24 new test assertions covering the encounters patch (suite now 109/109).
+
 ## [0.5.0] - 2026-08-13
 
 ### Added

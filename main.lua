@@ -317,6 +317,41 @@ local function applyStatics(mod, data, counts)
       counts.statics = counts.statics + 1
     end
 
+    -- Route 24 Mew (Phase 3b): splice CL's release into gold's EXISTING
+    -- dex-completion diploma branch ("5e:4c9a" — gold's gate at "5e:4c8c"
+    -- is already the CL formula, caught > 248 with Mew+Celebi excluded).
+    -- After special 106, clear the Mew object flag unless the Route 24 Mew
+    -- was already caught; the iftrue lands on a mod-owned script key.
+    local mew = data.mew
+    if type(mew) == "table" and type(mew.completedKey) == "string"
+      and type(mew.flags) == "table" and type(mew.text) == "table" then
+      scripts[mew.skipKey] = {
+        { op = "writetext", text = mew.text.after_diploma },
+        { op = "waitbutton" },
+        { op = "closetext" },
+        { op = "setevent", event = 214 },
+        { op = "end" },
+      }
+      scripts[mew.completedKey] = {
+        { op = "promptbutton" },
+        { op = "writetext", text = mew.text.completed },
+        { op = "playsound", id = 163 },
+        { op = "waitsfx" },
+        { op = "writetext", text = mew.text.pause },
+        { op = "promptbutton" },
+        { op = "special", id = 106 },
+        { op = "checkevent", event = mew.flags.caught },
+        { op = "iftrue", script = mew.skipKey },
+        { op = "clearevent", event = mew.flags.mew },
+        { op = "writetext", text = mew.text.after_diploma },
+        { op = "waitbutton" },
+        { op = "closetext" },
+        { op = "setevent", event = 214 },
+        { op = "end" },
+      }
+      counts.statics = counts.statics + 1
+    end
+
     local gc = data.gameCorner
     if type(gc) ~= "table" then return end
 

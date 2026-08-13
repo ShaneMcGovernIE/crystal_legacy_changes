@@ -71,4 +71,42 @@ statics.master = {
   },
 }
 
+-- ---------------------------------------------------------------------------
+-- Vermilion City Snorlax — PIN (verification only, no patch).
+--
+-- The gold cart already ships CL's Snorlax change: the static lives in
+-- Vermilion City (34,8) at L50 (CL moved it out of Route 11), woken by the
+-- Poke Flute RADIO CHANNEL (Pokegear knob 78, 20.0 MHz) rather than an item,
+-- and the channel itself is gated on the EXPN card in Kanto
+-- (ui/gen2/Pokegear.lua:826-831).  The wake check is engine special 95
+-- (script/gen2/Specials.lua:1741 SnorlaxAwake: current song + 5-cell
+-- adjacency), the battle is BATTLETYPE_FORCEITEM L50, and the disappear
+-- (world/gen2/World.lua:3596) sets the object's OWN flag 1904 so the next map
+-- load keeps it gone; setevent 1872 marks EVENT_FOUGHT_SNORLAX.  Nothing to
+-- patch — this section pins the facts so a future gold re-import cannot
+-- regress them silently.  Verified 2026-08-13 against the gold cache
+-- (maps.lua object, scripts.lua "4f:5291"/"4f:529e", text.lua "4f:5457"/
+-- "4f:5477") and CL (maps/VermilionCity.asm:28-101, :166-179).
+-- ---------------------------------------------------------------------------
+statics.snorlax = {
+  mapId = "VERMILION_CITY",
+  scriptKey = "4f:5291",    -- Snorlax A-press read script (OBJECTTYPE_SCRIPT)
+  wakeScriptKey = "4f:529e", -- iftrue branch of special 95
+  coords = { x = 34, y = 8 },
+  species = "SNORLAX",
+  speciesIndex = 143,
+  level = 50,
+  wakeSpecial = 95,         -- SnorlaxAwake: Poke Flute channel + adjacency
+  channel = "POKE_FLUTE_RADIO", -- Pokegear knob 78, EXPN-gated, Kanto only
+  flags = {
+    appear = 1904,          -- EVENT_VERMILION_CITY_SNORLAX (object flag)
+    fought = 1872,          -- EVENT_FOUGHT_SNORLAX (setevent post-battle)
+  },
+  battleType = "BATTLETYPE_FORCEITEM",
+  text = {
+    sleeping = "SNORLAX is snoring\npeacefully…",
+    wake = "The POKéGEAR was placed\nnear the sleeping SNORLAX…\n\f…\n\fSNORLAX woke up!",
+  },
+}
+
 return statics

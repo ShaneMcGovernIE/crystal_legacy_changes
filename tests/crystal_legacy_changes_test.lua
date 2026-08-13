@@ -1062,6 +1062,32 @@ T.check(type(shrineRow) == "table" and type(shrineRow[1]) == "table",
 T.eq(shrineRow[1][1], "crystal_legacy_changes:dratini_master",
   "shrine row carries the master command")
 
+-- ---- Phase 3b pin: Vermilion City Snorlax ------------------------------
+-- Verification only: the gold cart already ships CL's Snorlax (Vermilion
+-- 34,8 L50, Poke Flute radio-channel wake, EXPN-gated).  The pin section
+-- documents the facts so a gold re-import cannot regress them silently.
+local snorlax = staticsData.snorlax
+T.check(type(snorlax) == "table", "statics data file carries the snorlax pin")
+T.eq(snorlax.mapId, "VERMILION_CITY", "Snorlax lives in Vermilion City")
+T.eq(snorlax.coords.x, 34, "Snorlax tile x 34 (matches gold object)")
+T.eq(snorlax.coords.y, 8, "Snorlax tile y 8 (matches gold object)")
+T.eq(snorlax.speciesIndex, 143, "species is SNORLAX (143)")
+T.eq(snorlax.level, 50, "level is CL's L50")
+T.eq(snorlax.wakeSpecial, 95, "wake check is special 95 (SnorlaxAwake)")
+T.eq(snorlax.channel, "POKE_FLUTE_RADIO", "woken by the radio channel, not an item")
+T.eq(snorlax.scriptKey, "4f:5291", "A-press script key")
+T.eq(snorlax.wakeScriptKey, "4f:529e", "wake branch key")
+T.eq(snorlax.flags.appear, 1904, "object flag (EVENT_VERMILION_CITY_SNORLAX)")
+T.eq(snorlax.flags.fought, 1872, "post-battle flag (EVENT_FOUGHT_SNORLAX)")
+T.eq(snorlax.battleType, "BATTLETYPE_FORCEITEM", "battle is FORCEITEM, not Trap")
+T.check(snorlax.text.sleeping:match("^SNORLAX is snoring"),
+  "sleeping text matches CL wording")
+T.check(snorlax.text.wake:match("^The POKéGEAR was placed")
+  and snorlax.text.wake:match("SNORLAX woke up!$"),
+  "wake text matches CL wording")
+T.eq(export.rebalance.statics, 5,
+  "pin adds no patched arm (statics count unchanged)")
+
 -- ---- Phase 3a: fossils + Ruins of Alph --------------------------------
 local fossilsData = dofile("mods/crystal_legacy_changes/data/fossils.lua")
 local fossils = export.fossils

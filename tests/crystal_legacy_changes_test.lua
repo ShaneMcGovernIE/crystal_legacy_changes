@@ -82,6 +82,7 @@ end
 local encountersData = dofile("mods/crystal_legacy_changes/data/encounters.lua")
 local trainersData = dofile("mods/crystal_legacy_changes/data/trainers.lua")
 local martsData = dofile("mods/crystal_legacy_changes/data/marts.lua")
+local evolutionsData = dofile("mods/crystal_legacy_changes/data/evolutions.lua")
 
 local species, moves, items, music = {}, {}, {}, {}
 local function collectRefs(root, map)
@@ -111,6 +112,15 @@ collectRefs(trainersData, {
 for _, shelf in pairs(martsData.marts or {}) do
   for _, id in ipairs(shelf) do
     items[id] = true
+  end
+end
+-- Evolution rows carry an `item` field for the EVOLVE_ITEM method
+-- (METAL_COAT/UP_GRADE/KINGS_ROCK/WATER_STONE/DRAGON_SCALE/BRICK_PIECE);
+-- only METAL_COAT, UP_GRADE and BRICK_PIECE also appear on the Mahogany
+-- shelf, so the other three have to be collected from the rows directly.
+for _, rows in pairs(evolutionsData.evolutions or {}) do
+  for _, row in ipairs(rows) do
+    if type(row.item) == "string" then items[row.item] = true end
   end
 end
 
@@ -215,6 +225,37 @@ local function seedGoldMarts()
   }
 end
 seedGoldMarts()
+
+-- The evolutions patch swaps each species' whole `evolutions` list (record
+-- semantics: patch replaces arrays wholesale, it does not append).  Seed
+-- gold-style rows on base species so a deep-merge patch would visibly keep
+-- the junk: after the load the CL rows must be the ONLY rows left.
+local function seedGoldEvolutions()
+  local goldRows = {
+    GOLDEEN = { { into = "SEAKING", level = 33, method = "EVOLVE_LEVEL" } },
+    ONIX = {
+      { into = "STEELIX", item = "METAL_COAT", method = "EVOLVE_TRADE" },
+    },
+    TYROGUE = {
+      { into = "HITMONTOP", level = 20, comparison = "ATK_EQ_DEF", method = "EVOLVE_STAT" },
+      { into = "HITMONCHAN", level = 20, comparison = "ATK_LT_DEF", method = "EVOLVE_STAT" },
+      { into = "HITMONLEE", level = 20, comparison = "ATK_GT_DEF", method = "EVOLVE_STAT" },
+    },
+    PORYGON = {
+      { into = "PORYGON2", item = "UP_GRADE", method = "EVOLVE_TRADE" },
+    },
+    SLOWPOKE = {
+      { into = "SLOWBRO", level = 37, method = "EVOLVE_LEVEL" },
+      { into = "SLOWKING", item = "KINGS_ROCK", method = "EVOLVE_TRADE" },
+    },
+  }
+  data.pokemon = data.pokemon or {}
+  for species, rows in pairs(goldRows) do
+    data.pokemon[species] = data.pokemon[species] or {}
+    data.pokemon[species].evolutions = rows
+  end
+end
+seedGoldEvolutions()
 
 local run = T.sdk.loadMod("mods/crystal_legacy_changes", {
   data = data,
@@ -540,6 +581,77 @@ for i = 1, 34 do
 end
 T.check(not junkSeen, "no seeded junk survives in any of the 34 slots")
 T.check(not leakSeen, "no CL-only mart stock leaks into a gold slot")
+
+-- Phase 2 evolutions step: the patch swaps each species' whole evolutions
+-- list (record semantics), so the gold-style rows seeded above must be gone
+-- and the full CL lists must be in their place.  A deep-merge patch would
+-- have kept the seeded gold rows alongside the CL ones.
+T.eq(export.rebalance.evolutions, 15,
+  "exports report all 15 species with CL evolution lists")
+
+local function rowsFor(species)
+  return pokemon:get(species).evolutions or {}
+end
+local function fmtRow(row)
+  return (row.method or "?") .. ">" .. (row.into or "?")
+end
+
+local goldeen = rowsFor("GOLDEEN")
+T.eq(#goldeen, 1, "GOLDEEN has exactly one CL row")
+T.eq(goldeen[1].into, "SEAKING", "GOLDEEN evolves into SEAKING")
+T.eq(goldeen[1].level, 28, "GOLDEEN evolves at 28 (gold: 33)")
+T.eq(goldeen[1].method, "EVOLVE_LEVEL", "GOLDEEN evolves by level")
+
+local onix = rowsFor("ONIX")
+T.eq(#onix, 1, "ONIX has exactly one CL row")
+T.eq(onix[1].into, "STEELIX", "ONIX evolves into STEELIX")
+T.eq(onix[1].item, "METAL_COAT", "ONIX evolves with METAL_COAT")
+T.eq(onix[1].method, "EVOLVE_ITEM", "ONIX item evolution replaces gold's EVOLVE_TRADE")
+
+local tyrogue = rowsFor("TYROGUE")
+T.eq(#tyrogue, 3, "TYROGUE has three CL rows")
+T.eq(fmtRow(tyrogue[1]), "EVOLVE_ITEM>HITMONTOP",
+  "TYROGUE->HITMONTOP uses BRICK_PIECE (gold: ATK_EQ_DEF stat)")
+T.eq(tyrogue[1].item, "BRICK_PIECE", "HITMONTOP needs BRICK_PIECE")
+T.eq(tyrogue[2].comparison, "ATK_LT_DEF", "HITMONCHAN needs ATK_LT_DEF")
+T.eq(tyrogue[3].comparison, "ATK_GT_DEF", "HITMONLEE needs ATK_GT_DEF")
+
+local porygon = rowsFor("PORYGON")
+T.eq(#porygon, 1, "PORYGON has exactly one CL row")
+T.eq(porygon[1].method, "EVOLVE_ITEM", "PORYGON item evolution replaces gold's EVOLVE_TRADE")
+T.eq(porygon[1].item, "UP_GRADE", "PORYGON evolves with UP_GRADE")
+
+local slowpoke = rowsFor("SLOWPOKE")
+T.eq(#slowpoke, 2, "SLOWPOKE has two CL rows")
+T.eq(slowpoke[1].into, "SLOWBRO", "SLOWPOKE->SLOWBRO kept")
+T.eq(slowpoke[2].into, "SLOWKING", "SLOWPOKE->SLOWKING kept")
+T.eq(slowpoke[2].method, "EVOLVE_ITEM", "SLOWKING item evolution replaces gold's EVOLVE_TRADE")
+
+local poliwhirl = rowsFor("POLIWHIRL")
+T.eq(#poliwhirl, 2, "POLIWHIRL has two CL rows")
+T.eq(poliwhirl[1].item, "WATER_STONE", "POLIWRATH needs WATER_STONE")
+T.eq(poliwhirl[2].item, "KINGS_ROCK", "POLITOED needs KINGS_ROCK")
+
+-- Every seeded gold row must be gone: no EVOLVE_TRADE row survives anywhere.
+local tradeLeft = false
+for _, species in ipairs({ "GOLDEEN", "ONIX", "TYROGUE", "PORYGON", "SLOWPOKE" }) do
+  for _, row in ipairs(rowsFor(species)) do
+    if row.method == "EVOLVE_TRADE" then tradeLeft = true end
+  end
+end
+T.check(not tradeLeft, "no gold EVOLVE_TRADE row survives the CL swap")
+
+-- Whole-dataset totals: 15 species, 19 rows, all in the merged registry.
+local speciesCount = 0
+local rowCount = 0
+for species, rows in pairs(evolutionsData.evolutions or {}) do
+  speciesCount = speciesCount + 1
+  rowCount = rowCount + #rows
+  local merged = rowsFor(species)
+  T.eq(#merged, #rows, species .. " has the full CL list in the merged registry")
+end
+T.eq(speciesCount, 15, "data file carries 15 species")
+T.eq(rowCount, 19, "data file carries 19 evolution rows")
 
 run.release()
 T.finish("crystal_legacy_changes")

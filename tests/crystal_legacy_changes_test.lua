@@ -364,6 +364,41 @@ local function seedGoldGameCorner()
 end
 seedGoldGameCorner()
 
+-- Phase 3b Mew: the gold Celadon Mansion 3F Game Freak designer already runs
+-- the dex-completion chain (readvar VAR_DEXCAUGHT > 248 -> diploma branch);
+-- CL splices a Route 24 Mew release into the diploma branch.  Seed gold-shaped
+-- rows so a no-op patch would leave the vanilla chain with no Mew release.
+local function seedGoldMewChain()
+  data.gen2Scripts = data.gen2Scripts or {}
+  -- Designer gate: vanilla gold (reads VAR_DEXCAUGHT, diplomas at 249 caught).
+  data.gen2Scripts["5e:4c8c"] = {
+    { op = "faceplayer" },
+    { op = "opentext" },
+    { op = "writetext", text = "5e:4cea" },
+    { op = "readvar", var = 5 },
+    { op = "ifgreater", value = 248, script = "5e:4c9a" },
+    { op = "waitbutton" },
+    { op = "closetext" },
+    { op = "end" },
+  }
+  -- Diploma branch: vanilla gold (fanfare, Diploma special, print-flag, end).
+  data.gen2Scripts["5e:4c9a"] = {
+    { op = "promptbutton" },
+    { op = "writetext", text = "5e:4d41" },
+    { op = "playsound", id = 163 },
+    { op = "waitsfx" },
+    { op = "writetext", text = "5e:4d7c" },
+    { op = "promptbutton" },
+    { op = "special", id = 106 },
+    { op = "writetext", text = "5e:4d7f" },
+    { op = "waitbutton" },
+    { op = "closetext" },
+    { op = "setevent", event = 214 },
+    { op = "end" },
+  }
+end
+seedGoldMewChain()
+
 -- Phase 3a fossils + Ruins of Alph: the gold ROM ships no fossil items and
 -- no revival flow (the Research Center scientists are flavor text only), so
 -- the mod registers the three inert fossil items, replaces the top-right
@@ -945,8 +980,8 @@ T.eq(fires({ species = "TYROGUE", level = 20, stats = { attack = 20, defense = 3
 local staticsData = dofile("mods/crystal_legacy_changes/data/statics.lua")
 local gc = staticsData.gameCorner
 T.check(type(gc) == "table", "statics data file carries the gameCorner section")
-T.eq(export.rebalance.statics, 5,
-  "exports report 3 game-corner prize arms + master command + shrine row")
+T.eq(export.rebalance.statics, 6,
+  "exports report 3 game-corner prize arms + master command + shrine row + mew release")
 
 local scripts = data.gen2Scripts
 T.check(type(scripts) == "table", "gen2Scripts survives the load")
@@ -1085,8 +1120,61 @@ T.check(snorlax.text.sleeping:match("^SNORLAX is snoring"),
 T.check(snorlax.text.wake:match("^The POKéGEAR was placed")
   and snorlax.text.wake:match("SNORLAX woke up!$"),
   "wake text matches CL wording")
-T.eq(export.rebalance.statics, 5,
-  "pin adds no patched arm (statics count unchanged)")
+T.eq(export.rebalance.statics, 6,
+  "pin adds no patched arm (statics count reflects master + mew only)")
+
+-- ---- Phase 3b: Route 24 Mew dex-chain release --------------------------
+-- CL splices a Mew release into gold's EXISTING dex-completion branch; the
+-- visible Route 24 object is Phase 4 (no SPRITE_MEW overworld art in gold).
+local mew = staticsData.mew
+T.check(type(mew) == "table", "statics data file carries the mew section")
+T.eq(mew.speciesIndex, 151, "Mew species 151")
+T.eq(mew.level, 60, "Mew is L60")
+T.eq(mew.route, "ROUTE_24", "released on Route 24")
+T.eq(mew.coords.x, 8, "Route 24 tile x 8 (CL)")
+T.eq(mew.coords.y, 12, "Route 24 tile y 12 (CL)")
+T.eq(mew.flags.mew, 1940, "release flag EVENT_ROUTE_24_MEW (free in gold)")
+T.eq(mew.flags.caught, 1941, "caught flag EVENT_ROUTE_24_MEW_CAUGHT")
+T.eq(mew.gate.minCaught, 249, "gate = 249 caught (251 - Mew - Celebi)")
+
+-- The gold gate row is untouched and already CL-correct.
+local gate = scripts[mew.gateKey]
+T.check(type(gate) == "table", "designer gate script present")
+local readvar, ifgreater
+for _, step in ipairs(gate) do
+  if step.op == "readvar" then readvar = step end
+  if step.op == "ifgreater" then ifgreater = step end
+end
+T.eq(readvar and readvar.var, 5, "gate reads VAR_DEXCAUGHT")
+T.eq(ifgreater and ifgreater.value, 248, "gate: caught > 248 (Mew+Celebi excluded)")
+T.eq(ifgreater and ifgreater.script, "5e:4c9a", "gate jumps to the diploma branch")
+
+-- The diploma branch now carries the release between special 106 and the
+-- after-diploma text, with the caught check skipping the clearevent.
+local completed = scripts[mew.completedKey]
+local ops = {}
+for _, step in ipairs(completed or {}) do
+  ops[#ops + 1] = step.op
+end
+T.check(#ops >= 15 and ops[1] == "promptbutton" and ops[7] == "special",
+  "diploma branch still opens with fanfare + Diploma special")
+T.eq(completed[8].op, "checkevent", "release: checkevent caught first")
+T.eq(completed[8].event, 1941, "checks EVENT_ROUTE_24_MEW_CAUGHT")
+T.eq(completed[9].op, "iftrue", "release: iftrue skips the clearevent")
+T.eq(completed[9].script, mew.skipKey, "iftrue target is the mod skip row")
+T.eq(completed[10].op, "clearevent", "release: clearevent MEW")
+T.eq(completed[10].event, 1940, "clears EVENT_ROUTE_24_MEW")
+T.eq(completed[11].op, "writetext", "after-diploma text follows")
+T.eq(completed[#completed - 1].op, "setevent", "still sets the diploma-print flag")
+T.eq(completed[#completed - 1].event, 214, "EVENT_ENABLE_DIPLOMA_PRINTING (214)")
+T.eq(completed[#completed].op, "end", "branch still ends properly")
+
+-- The iftrue skip target exists and runs the same tail.
+local skip = scripts[mew.skipKey]
+T.check(type(skip) == "table", "skip target row registered")
+T.eq(skip[1].op, "writetext", "skip starts at the after-diploma text")
+T.eq(skip[1].text, mew.text.after_diploma, "same gold text row")
+T.eq(skip[#skip].op, "end", "skip ends cleanly")
 
 -- ---- Phase 3a: fossils + Ruins of Alph --------------------------------
 local fossilsData = dofile("mods/crystal_legacy_changes/data/fossils.lua")

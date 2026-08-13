@@ -226,6 +226,56 @@ local function seedGoldMarts()
 end
 seedGoldMarts()
 
+-- The berry-shop step appends CL's clerk to the Flower Shop map def (maps
+-- registry is Gen 2-active) and the two berry shelves at the first free mart
+-- ids (34/35 -> lists[35]/[36]).  Seed a gold-shaped shop with only the two
+-- vanilla objects (TEACHER + LASS, no clerk) so a no-op patch would leave it
+-- clerk-less and the shelves missing.
+local function seedGoldFlowerShop()
+  data.gen2Maps = data.gen2Maps or {}
+  data.gen2Maps.GOLDENROD_FLOWER_SHOP = {
+    id = "GOLDENROD_FLOWER_SHOP",
+    name = "GOLDENROD FLOWER SHOP",
+    width = 4,
+    height = 4,
+    objects = {
+      {
+        eventFlag = 65535,
+        hours = { -1, -1 },
+        index = 1,
+        movement = 9,
+        palette = 0,
+        radius = { x = 0, y = 0 },
+        script = 21201,
+        scriptKey = "57:52d1",
+        sight = 0,
+        sprite = "SPRITE_TEACHER",
+        spriteId = 41,
+        type = 0,
+        x = 2,
+        y = 4,
+      },
+      {
+        eventFlag = 65535,
+        hours = { -1, -1 },
+        index = 2,
+        movement = 2,
+        palette = 10,
+        radius = { x = 1, y = 1 },
+        script = 21204,
+        scriptKey = "57:52f4",
+        sight = 0,
+        sprite = "SPRITE_LASS",
+        spriteId = 40,
+        type = 0,
+        x = 5,
+        y = 6,
+      },
+    },
+  }
+end
+seedGoldFlowerShop()
+
 -- The evolutions patch swaps each species' whole `evolutions` list (record
 -- semantics: patch replaces arrays wholesale, it does not append).  Seed
 -- gold-style rows on base species so a deep-merge patch would visibly keep
@@ -646,7 +696,7 @@ T.eq(export.rebalance.clOnly, 5,
 local marts = data.gen2Marts
 T.check(type(marts) == "table", "gen2Marts survives the load")
 T.check(type(marts.lists) == "table", "gen2Marts.lists survives the load")
-T.eq(#marts.lists, 34, "all 34 gold mart slots are present")
+T.eq(#marts.lists, 36, "34 gold slots + the two appended berry shelves")
 T.eq(marts.bargain[1].item, "POTION", "bargain item is preserved")
 T.eq(marts.bargain[1].price, 300, "bargain price is preserved")
 
@@ -688,8 +738,10 @@ for i = 1, 34 do
   for _, item in ipairs(marts.lists[i] or {}) do
     if item:sub(1, 12) == "SEEDED_JUNK_" then junkSeen = true end
     -- CL-only marts (BERRYS, BERRYS_2, CELADON_3F_2, CELADON_5F_1_2,
-    -- CELADON_5F_2_2) have no gold slot (NUM_MARTS = 34); their unique stock
-    -- must never land on any reachable shelf.
+    -- CELADON_5F_2_2) have no gold slot (NUM_MARTS = 34); the berry-shop step
+    -- appends BERRYS/BERRYS_2 at ids 34/35 (lists[35]/[36]), but their unique
+    -- stock must never land on any of the 34 gold slots.  The three unmapped
+    -- Celadon shelves stay held back entirely.
     if item == "GOLD_BERRY" or item == "TM_EARTHQUAKE"
       or item == "TM_TOXIC" or item == "TM_RETURN" then
       leakSeen = true
@@ -698,6 +750,68 @@ for i = 1, 34 do
 end
 T.check(not junkSeen, "no seeded junk survives in any of the 34 slots")
 T.check(not leakSeen, "no CL-only mart stock leaks into a gold slot")
+
+-- Phase 3a berry-shop step: the Goldenrod Flower Shop gets CL's clerk selling
+-- the MART_BERRYS / MART_BERRYS_2 shelves, badge-gated at 7 badges exactly
+-- like CL's BerryMartScript.  The two shelves have no gold slot under
+-- NUM_MARTS = 34, so they are appended at the first free mart ids (34/35 ->
+-- lists[35]/[36]) and the clerk's script is injected into gen2Scripts.
+T.eq(export.rebalance.berryShop.lists, 2, "both berry shelves appended")
+T.eq(export.rebalance.berryShop.object, 1, "Flower Shop clerk object added")
+T.eq(export.rebalance.berryShop.script, 1, "BerryMartScript injected")
+
+T.eq(shelf(35), clShelf("MART_BERRYS"),
+  "slot 35 is the MART_BERRYS shelf (id 34)")
+T.eq(shelf(36), clShelf("MART_BERRYS_2"),
+  "slot 36 is the MART_BERRYS_2 shelf (id 35)")
+T.check(marts.lists[36][9] == "GOLD_BERRY"
+  and marts.lists[36][10] == "MIRACLEBERRY",
+  "the BERRYS_2 shelf carries the late-game berries")
+
+local shop = data.gen2Maps.GOLDENROD_FLOWER_SHOP
+T.check(type(shop) == "table", "Flower Shop map def present in gen2Maps")
+T.eq(#shop.objects, 3, "Flower Shop has three objects after the patch")
+local clerk = shop.objects[3]
+T.eq(clerk.scriptKey, "crystal_legacy_changes:berry_mart",
+  "clerk runs the injected berry script")
+T.eq(clerk.sprite, "SPRITE_CLERK", "clerk uses the clerk sprite")
+T.eq(clerk.x, 5, "clerk at x=5 (CL position)")
+T.eq(clerk.y, 3, "clerk at y=3 (CL position)")
+T.eq(clerk.movement, 6, "clerk stands still facing down")
+T.eq(clerk.type, 0, "clerk is an OBJECTTYPE_SCRIPT")
+T.eq(clerk.eventFlag, 65535, "clerk has no flag gate")
+
+local berryScript = data.gen2Scripts["crystal_legacy_changes:berry_mart"]
+T.check(type(berryScript) == "table", "BerryMartScript injected into gen2Scripts")
+T.eq(berryScript[1].op, "faceplayer", "script opens with faceplayer")
+T.eq(berryScript[2].op, "opentext", "script opens the text window")
+T.eq(berryScript[3].op, "readvar", "script reads a variable")
+T.eq(berryScript[3].var, 0x07, "the variable is VAR_BADGES")
+T.eq(berryScript[4].op, "ifless", "script branches on badge count")
+T.eq(berryScript[4].value, 7, "the gate is 7 badges (CL BerryMartScript)")
+T.eq(berryScript[4].script[1].op, "pokemart", "under-7 arm opens a mart")
+T.eq(berryScript[4].script[1].martId, 34, "under-7 arm sells MART_BERRYS (id 34)")
+T.eq(berryScript[5].op, "pokemart", "over-7 arm opens a mart")
+T.eq(berryScript[5].martId, 35, "over-7 arm sells MART_BERRYS_2 (id 35)")
+T.eq(berryScript[6].op, "closetext", "script closes the text window")
+T.eq(berryScript[7].op, "end", "script ends")
+
+-- KNOWN-BLOCKED STATE (Phase 4, engine): MartMenu.inventory
+-- (src/ui/gen2/MartMenu.lua:347) unconditionally returns DEFAULT_MART for
+-- martId >= NUM_MARTS (34), so the appended shelves are unreachable until the
+-- data-driven gate fix lands.  Pin the current fallback against the REAL gate
+-- function; the Phase 4 change should flip these on purpose.
+local MartMenu = require("src.ui.gen2.MartMenu")
+local fallback34 = MartMenu.inventory(marts, 34)
+local fallback35 = MartMenu.inventory(marts, 35)
+T.check(type(fallback34) == "table" and fallback34[1] == "POKE_BALL",
+  "gate documented: martId 34 currently falls back to DEFAULT_MART")
+T.check(type(fallback35) == "table" and fallback35[1] == "POKE_BALL",
+  "gate documented: martId 35 currently falls back to DEFAULT_MART")
+T.check(MartMenu.inventory(marts, 34) ~= marts.lists[35],
+  "blocked: inventory(marts, 34) is not the MART_BERRYS shelf yet")
+T.check(MartMenu.inventory(marts, 35) ~= marts.lists[36],
+  "blocked: inventory(marts, 35) is not the MART_BERRYS_2 shelf yet")
 
 -- Phase 2 evolutions step: the patch swaps each species' whole evolutions
 -- list (record semantics), so the gold-style rows seeded above must be gone

@@ -37,16 +37,18 @@ patches, not mod data) and are never faked:
 - Battle Tower trainers and rewards.
 - Hard and Hardcore modes (battle item-ban hook, forced Set, no-revive).
 - Trainer held items (every boss row in the CL doc carries one).
-- Sprites — known overworld art gaps, never faked:
-  - Rocket Base B2F's six electrodes still render Gold's VOLTORB art (no
-    SPRITE_ELECTRODE overworld art ships), and Rocket Base B3F's Murkrow
-    still reuses Gold's SPRITE_MOLTRES bird art.
-  - Mew (Route 24) and Articuno/Zapdos (Route 20 / Route 10 North) have no
-    overworld art in Gold — their story wiring ships in `data/statics.lua`
-    (flags/scripts/coords) and activates with the Phase 4 sprite drop.
-    Moltres (Victory Road) and Celebi (Ilex shrine) are live today: Gold
-    ships SPRITE_MOLTRES and Celebi is a wild battle, so it needs no sprite.
-    The GS Ball's bag icon is a Phase 4 art gap too.
+- Sprites — Phase 4b shipped real overworld art for all six targets (see
+  `data/sprites.lua`, extracted from CL source, converted to Gold's mode L
+  4-shade format; no art is faked):
+  - Rocket Base B2F's six electrodes now wear SPRITE_ELECTRODE and B3F's
+    Murkrow wears SPRITE_MURKROW (both CL 16x32 mon icons, matching how CL's
+    engine renders pokemon-range sprites).
+  - Mew (Route 24) is now live with its object + CL MewScript, and
+    Articuno/Zapdos (Route 20 / Route 10 North) spawn with real 16x96
+    walking sheets from CL.  Moltres (Victory Road) reuses Gold's
+    SPRITE_MOLTRES and Celebi is a wild battle (no sprite needed; SPRITE_CELEBI
+    is registered for the shrine cutscene when it's ported).
+  - The GS Ball's bag icon is still a Phase 4 art gap.
 - The Flower Shop berry shop (`data/berry_shop.lua`) ships mod-side but its
   mart-shelf gate is a Phase 4 engine item.
 - The Goldenrod Move Tutor's proper UI (the tutor scene ships now through

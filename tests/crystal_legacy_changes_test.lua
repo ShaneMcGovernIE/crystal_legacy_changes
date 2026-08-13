@@ -648,6 +648,58 @@ local function seedGoldCelebi()
 end
 seedGoldCelebi()
 
+-- Radio Tower 5F: gold's shipped takeover objects (GENTLEMAN fake director,
+-- ROCKET boss, ROCKET_GIRL trainer, ROCKER director), the scene-0 fake
+-- director coordEvent and the scene-1 boss coordEvent.  The mod's
+-- applyRocketTower appends the two GIOVANNI hologram objects, re-sprites the
+-- boss to SPRITE_ARCHER and repoints the scene-1 coordEvent.
+local function seedGoldRadioTower()
+  data.gen2Maps.RADIO_TOWER_5F = {
+    id = "RADIO_TOWER_5F",
+    width = 18,
+    height = 9,
+    objects = {
+      {
+        eventFlag = 65535, hours = { -1, -1 }, index = 1, movement = 1,
+        palette = 0, radius = { x = 0, y = 0 }, script = 26471,
+        scriptKey = "43:677d", sight = 0, sprite = "SPRITE_GENTLEMAN",
+        spriteId = 46, type = 0, x = 3, y = 6,
+      },
+      {
+        eventFlag = 1742, hours = { -1, -1 }, index = 2, movement = 8,
+        palette = 0, radius = { x = 0, y = 0 }, script = 10258,
+        scriptKey = "00:2812", sight = 0, sprite = "SPRITE_ROCKET",
+        spriteId = 53, type = 0, x = 13, y = 5,
+      },
+      {
+        eventFlag = 1742, hours = { -1, -1 }, index = 3, movement = 8,
+        palette = 0, radius = { x = 0, y = 0 }, script = 26490,
+        scriptKey = "43:679d", sight = 1, sprite = "SPRITE_ROCKET_GIRL",
+        spriteId = 54, type = 2, x = 17, y = 2,
+      },
+      {
+        eventFlag = 1744, hours = { -1, -1 }, index = 4, movement = 8,
+        palette = 0, radius = { x = 0, y = 0 }, script = 26471,
+        scriptKey = "43:683f", sight = 0, sprite = "SPRITE_ROCKER",
+        spriteId = 45, type = 0, x = 13, y = 5,
+      },
+    },
+    coordEvents = {
+      { sceneId = 0, scriptKey = "43:6748", x = 0, y = 3 },
+      { sceneId = 1, scriptKey = "43:67a5", x = 16, y = 5 },
+    },
+    sceneScripts = {
+      [0] = { sceneId = 0, script = 26437, scriptKey = "43:6745" },
+      [1] = { sceneId = 1, script = 26438, scriptKey = "43:6746" },
+      [2] = { sceneId = 2, script = 26439, scriptKey = "43:6747" },
+    },
+    bgEvents = {},
+  }
+  data.gen2Movement = data.gen2Movement or {}
+  data.gen2Sprites = data.gen2Sprites or {}
+end
+seedGoldRadioTower()
+
 local run = T.sdk.loadMod("mods/crystal_legacy_changes", {
   data = data,
   generation = 2,
@@ -2176,6 +2228,140 @@ withGame(usedSave)
 T.eq(export.moveTutor.teach({ vm = vm }, "FLAMETHROWER"), "end",
   "teach refuses when today's lesson is used")
 T.eq(vm.seen[1], "crystal_legacy_changes:daily", "teach daily refusal text")
+
+-- ---- Phase 3d2: Team Rocket RadioTower 5F boss scene ----------------------
+-- Gold already ships the full 1F-5F Rocket takeover (fake director giving the
+-- BASEMENT_KEY, EXECUTIVEM_2 on 4F, EXECUTIVEF_1 on 5F, the takeover flag
+-- cascade); the mod ports the CL-only 5F boss scene as script-table patches:
+-- ROCKET_LEADER/Archer replaces the EXECUTIVEM_1 battle, the GIOVANNI
+-- hologram + ARCHER disband sequences are added, and the boss object wears
+-- SPRITE_ARCHER.  The reward stays gold's RAINBOW_WING (CL's CLEAR_BELL does
+-- not exist in gold) and gold's 12-flag cascade (== CL's set) is kept.
+local function sceneHasOp(scene, op, object)
+  for _, row in ipairs(scene) do
+    if row.op == op and (object == nil or row.object == object) then
+      return row
+    end
+  end
+  return nil
+end
+
+local rt = export.rocketTower.data
+T.check(type(export.rocketTower) == "table", "exports carry the rocket tower handlers")
+T.eq(rt.map, "RADIO_TOWER_5F", "rocket tower targets 5F")
+T.eq(rt.flags.giovanniDisguise, 1932, "GIOVANNI disguise flag 1932 (free above gold)")
+T.eq(rt.flags.giovanniReal, 1933, "GIOVANNI real flag 1933 (free above gold)")
+T.eq(rt.flags.clearedRadioTower, 33, "cascade uses gold's EVENT_CLEARED_RADIO_TOWER 33")
+T.eq(rt.flags.engineRocketsInTower, 18, "cascade clears gold's ENGINE_ROCKETS_IN_RADIO_TOWER 18")
+T.eq(rt.flags.beatExecutivem1, 1393, "cascade sets EVENT_BEAT_ROCKET_EXECUTIVEM_1 1393")
+T.eq(rt.flags.teamRocketDisbanded, 1889, "cascade sets EVENT_TEAM_ROCKET_DISBANDED 1889")
+
+-- Sprites: CL art (16x96 4-shade sheets, copied verbatim from CL_source).
+T.eq(run.loader.content.sprites:get("SPRITE_ARCHER").image,
+  "assets/sprites/archer.png", "Archer sprite registered with CL art")
+T.eq(run.loader.content.sprites:get("SPRITE_GIOVANNI").image,
+  "assets/sprites/giovanni.png", "Giovanni sprite registered")
+T.eq(run.loader.content.sprites:get("SPRITE_GIOVANNI_DISGUISE").image,
+  "assets/sprites/giovanni_disguise.png", "Giovanni disguise sprite registered")
+T.eq(run.loader.content.sprites:get("SPRITE_GIOVANNI").palette, "PAL_OW_BROWN",
+  "Giovanni uses the brown OW palette (CL PAL_NPC_BROWN)")
+
+-- Texts + movements land under the mod prefix.
+for key in pairs(rt.texts) do
+  T.check(data.gen2Text["crystal_legacy_changes:" .. key] ~= nil, "text " .. key)
+end
+for key in pairs(rt.movements) do
+  T.eq(type(data.gen2Movement["crystal_legacy_changes:" .. key]), "table",
+    "movement " .. key)
+end
+
+-- Map: 6 objects after the patch, boss re-sprited, coordEvent repointed.
+local rtMap = data.gen2Maps.RADIO_TOWER_5F
+T.eq(#rtMap.objects, 6, "5F carries 6 objects (4 gold + 2 GIOVANNI)")
+T.eq(rtMap.objects[2].sprite, "SPRITE_ARCHER", "boss object wears Archer's sprite")
+T.eq(rtMap.objects[5].sprite, "SPRITE_GIOVANNI_DISGUISE", "hologram object appended")
+T.eq(rtMap.objects[5].eventFlag, 1932, "hologram hidden by flag 1932")
+T.eq(rtMap.objects[5].x, 12, "hologram stands at (12,0)")
+T.eq(rtMap.objects[6].sprite, "SPRITE_GIOVANNI", "real GIOVANNI object appended")
+T.eq(rtMap.objects[6].eventFlag, 1933, "real GIOVANNI hidden by flag 1933")
+local rtBossCe
+for _, ce in ipairs(rtMap.coordEvents) do
+  if ce.sceneId == 1 then rtBossCe = ce end
+end
+T.check(rtBossCe ~= nil, "boss coordEvent (16,5) present")
+T.eq(rtBossCe.scriptKey, "crystal_legacy_changes:radiotower_boss_scene",
+  "boss coordEvent repointed to the mod scene")
+T.eq(data.gen2Scripts[rt.objectEventKey][1].op, "end",
+  "hologram objects carry a no-op talk script")
+
+-- The boss scene itself.
+local rtScene = data.gen2Scripts[rt.bossSceneKey]
+T.check(type(rtScene) == "table", "boss scene injected into gen2Scripts")
+T.eq(#rtScene, 146, "boss scene row count (CL flow, gold row format)")
+T.eq(rtScene[1].op, "applymovement", "scene opens moving the player")
+T.eq(rtScene[1].object, 0, "player walks left from the stairs")
+T.eq(rtScene[3].op, "turnobject", "boss turns to face the player")
+T.eq(rtScene[3].facing, 3, "boss faces RIGHT")
+local rtBattle = sceneHasOp(rtScene, "loadtrainer")
+T.eq(rtBattle.class, 69, "boss battle class 69 (ROCKET_LEADER, Phase 2)")
+T.eq(rtBattle.member, 1, "boss battle member 1 (ARCHER)")
+T.check(sceneHasOp(rtScene, "startbattle") ~= nil, "boss battle runs")
+T.check(sceneHasOp(rtScene, "reloadmapafterbattle") ~= nil, "map reloads after battle")
+-- Giovanni hologram: disguise appears, then the reveal swaps to the real one.
+T.eq(sceneHasOp(rtScene, "appear", 5).object, 5, "disguise object appears")
+T.check(sceneHasOp(rtScene, "disappear", 5) ~= nil, "disguise disappears for the reveal")
+T.eq(sceneHasOp(rtScene, "appear", 6).object, 6, "real GIOVANNI appears")
+T.check(sceneHasOp(rtScene, "disappear", 6) ~= nil, "GIOVANNI leaves after the speech")
+T.check(sceneHasOp(rtScene, "special", nil) ~= nil, "scene uses special ops")
+-- Disband: Archer + ROCKET_GIRL fade out before the cascade.
+T.check(sceneHasOp(rtScene, "disappear", 2) ~= nil, "Archer disappears at disband")
+T.check(sceneHasOp(rtScene, "disappear", 3) ~= nil, "ROCKET_GIRL disappears at disband")
+-- Cascade: gold's 12 takeover flags + the two GIOVANNI flags, in order.
+local rtSetEvents, rtSetFlags, rtClearEvents, rtClearFlags = {}, {}, {}, {}
+for _, row in ipairs(rtScene) do
+  if row.op == "setevent" then rtSetEvents[#rtSetEvents + 1] = row.event end
+  if row.op == "setflag" then rtSetFlags[#rtSetFlags + 1] = row.flag end
+  if row.op == "clearevent" then rtClearEvents[#rtClearEvents + 1] = row.event end
+  if row.op == "clearflag" then rtClearFlags[#rtClearFlags + 1] = row.flag end
+end
+T.eq(table.concat(rtSetEvents, ","),
+  "1393,33,1740,1741,1742,1763,1932,1933,120,1889",
+  "setevents: takeover cascade + GIOVANNI + reward flags")
+T.eq(table.concat(rtClearEvents, ","), "1846,1743,1744,1764",
+  "clearevents: civilians/nerd flags match gold's shipped cascade")
+T.eq(table.concat(rtSetFlags, ","), "", "no setflags in the cascade")
+T.eq(table.concat(rtClearFlags, ","), "18,22",
+  "clearflags: ENGINE_ROCKETS_IN_RADIO_TOWER + MAHOGANY")
+-- Director: the GENTLEMAN (object 1) is reused, CL-style, for the walk-in.
+local rtMove = sceneHasOp(rtScene, "moveobject")
+T.eq(rtMove.object, 1, "director object is the GENTLEMAN (CL reuses it)")
+T.eq(rtMove.x, 12, "director teleports to (12,0)")
+T.eq(rtMove.y, 0, "director teleports to (12,0)")
+T.check(sceneHasOp(rtScene, "disappear", 1) ~= nil, "GENTLEMAN hides for the walk-in")
+-- Reward: gold's RAINBOW_WING (178) + flags 120/1889, gold's director texts.
+local rtGive = sceneHasOp(rtScene, "verbosegiveitem")
+T.eq(rtGive.item, 178, "director gives gold's RAINBOW_WING (178)")
+T.eq(rtGive.quantity, 1, "one RAINBOW_WING")
+T.eq(rtScene[#rtScene].op, "end", "scene ends")
+T.check(sceneHasOp(rtScene, "setscene") ~= nil, "scene closes with setscene 2")
+-- The mod.save flags are set at mods.loaded (CL's new-game-init equivalent).
+-- The suite's clearSaveFlags wipes the loader save bucket mid-suite, so
+-- re-fire mods.loaded with the same payload the loader uses; the handler's
+-- one-per-session guard keeps the injections idempotent while the flag
+-- writes (idempotent themselves) run again.
+run.loader.events:emit("mods.loaded",
+  { loader = run.loader, data = run.loader.baseData })
+T.eq(run.loader.modSave["crystal_legacy_changes"][1932], true,
+  "GIOVANNI disguise hidden from the start")
+T.eq(run.loader.modSave["crystal_legacy_changes"][1933], true,
+  "real GIOVANNI hidden from the start")
+T.eq(#rtMap.objects, 6, "re-fire is idempotent (no duplicate GIOVANNI objects)")
+-- Counts reported.
+T.eq(export.rebalance.rocketTower.sprites, 3, "3 sprites registered")
+T.eq(export.rebalance.rocketTower.texts, 15, "15 CL texts registered")
+T.eq(export.rebalance.rocketTower.movements, 16, "16 movement tables injected")
+T.eq(export.rebalance.rocketTower.objects, 3, "boss re-sprite + 2 GIOVANNI objects")
+T.eq(export.rebalance.rocketTower.scripts, 1, "1 boss scene script injected")
 
 run.release()
 T.finish("crystal_legacy_changes")

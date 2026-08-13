@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.8.0] - 2026-08-13
+
+### Added
+
+- Evolutions data patch: swaps in the full Crystal Legacy evolution lists for
+  15 species (19 rows) from `data/evolutions.lua` via wholesale
+  `pokemon.evolutions` replacement (record semantics — no append).
+  - 7 item evolutions converted from trade: Onix (Metal Coat), Scyther
+    (Metal Coat), Seadra (Dragon Scale), Porygon (Upgrade), Poliwhirl
+    (King's Rock), Slowpoke (King's Rock), Tyrogue (Brick Piece).
+  - 4 trade evolutions moved to level: Kadabra 42, Machoke 38, Graveler 38,
+    Haunter 42.
+  - 4 early level shifts: Goldeen 28, Pineco 25, Slugma 27, Spinarak 21.
+  - No evolution_methods registration needed (EVOLVE_LEVEL/ITEM/STAT are
+    engine-owned).
+- 62 new test assertions covering the evolutions patch (suite now 192/192).
+- Note: item evolution activation (stone-use path) is an engine gap tracked
+  in Phase 4 — CL item evolution rows land in data but cannot fire until the
+  engine gains a stone family + force ctx (also fixes vanilla Gold's inert
+  trade evolutions).
+
 ## [0.7.0] - 2026-08-13
 
 ### Added

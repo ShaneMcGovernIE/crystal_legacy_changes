@@ -296,6 +296,190 @@ local function applyStatics(mod, data, counts)
   end)
 end
 
+-- Fossils & Ruins of Alph (Phase 3a).  The Gold ROM ships no fossil items
+-- (its item table is renumbered -- OLD_AMBER/DOME_FOSSIL/HELIX_FOSSIL were
+-- removed) and no reachable revival flow: the Research Center's three
+-- scientists resolve to flavor text only.  Crystal Legacy restores the
+-- fossils as inert items, makes the top-right scientist revive them (Kabuto
+-- L15 / Omanyte L20 / Aerodactyl L25), and has the three chamber puzzles hand
+-- the fossils out, gated by the Johto gym badges (Plain=Gym 3, Fog=Gym 4,
+-- Glacier=Gym 7).
+--
+-- map_scripts is gated off on Gen 2 (Schemas.GEN2), so the "script" work
+-- rides the seams that ARE routed: the items/text/commands registries plus
+-- the same gen2Scripts in-place row patch applyStatics uses on mods.loaded.
+-- The scientist's script row is replaced wholesale; each chamber's solved
+-- sequence gets a reward command row after its event flags and each
+-- MAPCALLBACK_TILES script gets a deferred-claim command row first (the
+-- callback runs on every load of the map, so a puzzle solved before the
+-- badge is earned is still claimable after -- it can never be stranded).
+local function applyFossils(mod, data, counts)
+  counts.fossils = { items = 0, text = 0, commands = 0, scripts = 0 }
+
+  -- The three inert fossil items (QoL: real items now -- tossable, unusable
+  -- in battle or the field, no held effect, price 0, in the ITEMS pocket).
+  for _, item in ipairs(data.items or {}) do
+    mod.content.items:register(item.id, item)
+    counts.fossils.items = counts.fossils.items + 1
+  end
+
+  -- Custom text rows, keyed under the mod prefix into data.gen2Text.
+  for key, text in pairs(data.text or {}) do
+    mod.content.text:register("crystal_legacy_changes:" .. key, text)
+    counts.fossils.text = counts.fossils.text + 1
+  end
+
+  local function saveOf()
+    local game = mod.game
+    return game and game.save
+  end
+
+  local function hasBadge(save, name)
+    local badges = save and save.player and save.player.badges
+    return type(badges) == "table" and badges[name] == true
+  end
+
+  -- The scientist's revival flow.  Party-full is checked BEFORE the fossil is
+  -- consumed: the engine's World:givePoke ignores Party.add's return and
+  -- would silently drop the mon at a full party (it is an unused cart path --
+  -- vanilla Gold has no revival).  Each vm:showText blocks until the A press
+  -- (the port's TextBox takes it), so the sequence reads like a vanilla talk.
+  local function reviveScientist(ctx)
+    local vm = ctx and ctx.vm
+    if not vm then return end
+    local revive = data.scientist and data.scientist.revive
+    if not revive then return end
+    vm:showText("crystal_legacy_changes:revive_greet")
+    local found
+    for _, entry in ipairs(revive) do
+      local has = vm.hasItemFn and vm.hasItemFn(entry.itemIndex)
+      if has then
+        found = entry
+        break
+      end
+    end
+    if not found then
+      vm:showText("crystal_legacy_changes:revive_none")
+      return
+    end
+    local save = saveOf()
+    if save and type(save.party) == "table" and #save.party >= 6 then
+      vm:showText("crystal_legacy_changes:revive_party_full")
+      return
+    end
+    local speciesLower = string.lower(found.species)
+    vm:showText("crystal_legacy_changes:revive_" .. speciesLower)
+    if vm.takeItemFn then vm.takeItemFn(found.itemIndex, 1) end
+    if vm.givePokeFn then vm.givePokeFn(found.speciesIndex, found.level, nil) end
+    vm:showText("crystal_legacy_changes:got_" .. speciesLower)
+  end
+
+  -- Puzzle solved: badge-gated, one-per-save fossil hand-out.  Runs as a row
+  -- inside the solved sequence after its event flags, so the solve itself is
+  -- untouched; without the badge it does nothing and the deferred arm below
+  -- claims the fossil once the badge is earned.
+  local function giveFossil(vm, ch)
+    local flag = "ruins." .. ch.id
+    if mod.save:get(flag) then return end
+    local ok = vm.giveItemFn and vm.giveItemFn(ch.itemIndex, 1)
+    if ok == false then
+      vm:showText("crystal_legacy_changes:ruins_bag_full")
+      return
+    end
+    mod.save:set(flag, true)
+    vm:showText("crystal_legacy_changes:ruins_got_" .. string.lower(ch.id))
+  end
+
+  local function findChamber(chamberId)
+    for _, ch in ipairs(data.chambers or {}) do
+      if ch.id == chamberId then return ch end
+    end
+  end
+
+  local function ruinsReward(ctx, chamberId)
+    local vm = ctx and ctx.vm
+    local ch = vm and findChamber(chamberId)
+    if not ch then return end
+    if not hasBadge(saveOf(), ch.badge) then return end
+    giveFossil(vm, ch)
+  end
+
+  -- Chamber entry (MAPCALLBACK_TILES): claim the fossil once the badge is
+  -- earned if the puzzle was solved without one.  Runs on every load of the
+  -- map; the one-per-save flag makes it a no-op afterwards.
+  local function ruinsDeferred(ctx, chamberId)
+    local vm = ctx and ctx.vm
+    local ch = vm and findChamber(chamberId)
+    if not ch then return end
+    local save = saveOf()
+    if not save or not save.engineFlags then return end
+    if not save.engineFlags[ch.solvedEvent] then return end -- puzzle not solved
+    if not hasBadge(save, ch.badge) then return end
+    giveFossil(vm, ch)
+  end
+
+  mod.commands:register("crystal_legacy_changes:revive_fossil", reviveScientist)
+  mod.commands:register("crystal_legacy_changes:ruins_reward", ruinsReward)
+  mod.commands:register("crystal_legacy_changes:ruins_deferred", ruinsDeferred)
+  counts.fossils.commands = 3
+
+  -- Row patches, on the same mods.loaded seam applyMarts/applyStatics use.
+  mod.events:on("mods.loaded", function(payload)
+    local target = payload and payload.data
+    if not target then return end
+    local scripts = target.gen2Scripts
+    if type(scripts) ~= "table" then return end
+
+    -- The top-right scientist talks to a straight command run.  The vanilla
+    -- rows were flavor text only (no checkitem/takeitem/givepoke anywhere
+    -- reachable on Gold), so the whole list is replaced.
+    local scientist = data.scientist
+    if type(scientist) == "table" and type(scientist.scriptKey) == "string" then
+      scripts[scientist.scriptKey] = {
+        { op = "faceplayer" },
+        { op = "opentext" },
+        { "crystal_legacy_changes:revive_fossil" },
+        { op = "waitbutton" },
+        { op = "closetext" },
+        { op = "end" },
+      }
+      counts.fossils.scripts = counts.fossils.scripts + 1
+    end
+
+    -- Chamber solved sequences carry the reward arm right after their event
+    -- flags (so the solve state is already committed); the MAPCALLBACK_TILES
+    -- scripts carry the deferred-claim arm first.
+    for _, ch in ipairs(data.chambers or {}) do
+      local solved = scripts[ch.solvedScript]
+      if type(solved) == "table" then
+        local lastFlag
+        for i, step in ipairs(solved) do
+          if type(step) == "table" and (step.op == "setevent" or step.op == "setflag") then
+            lastFlag = i
+          end
+        end
+        if lastFlag then
+          table.insert(solved, lastFlag + 1, { "crystal_legacy_changes:ruins_reward", ch.id })
+          counts.fossils.scripts = counts.fossils.scripts + 1
+        end
+      end
+      local callback = scripts[ch.callbackScript]
+      if type(callback) == "table" then
+        table.insert(callback, 1, { "crystal_legacy_changes:ruins_deferred", ch.id })
+        counts.fossils.scripts = counts.fossils.scripts + 1
+      end
+    end
+  end)
+
+  mod.exports.fossils = {
+    revive = reviveScientist,
+    reward = ruinsReward,
+    deferred = ruinsDeferred,
+    hasBadge = hasBadge,
+    data = data,
+  }
+end
+
 return function(mod)
   local counts = applyRebalance(mod, loadSibling(mod, "rebalance.lua"))
   counts.learnsets = applyLearnsets(mod, loadSibling(mod, "learnsets.lua"))
@@ -308,5 +492,6 @@ return function(mod)
   applyEvolutions(mod, loadSibling(mod, "data/evolutions.lua"), counts)
   counts.statics = 0
   applyStatics(mod, loadSibling(mod, "data/statics.lua"), counts)
+  applyFossils(mod, loadSibling(mod, "data/fossils.lua"), counts)
   mod.exports.rebalance = counts
 end

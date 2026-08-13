@@ -314,6 +314,66 @@ local function seedGoldGameCorner()
 end
 seedGoldGameCorner()
 
+-- Phase 3a fossils + Ruins of Alph: the gold ROM ships no fossil items and
+-- no revival flow (the Research Center scientists are flavor text only), so
+-- the mod registers the three inert fossil items, replaces the top-right
+-- scientist's script row with a revival command run, and patches the three
+-- chamber puzzles' solved sequences + MAPCALLBACK_TILES scripts with the
+-- reward / deferred-claim arms.  Seed gold-shaped rows so a no-op patch
+-- would leave the vanilla text-only scientist and unrewarded solves.
+local function seedGoldFossils()
+  data.gen2Scripts = data.gen2Scripts or {}
+  -- Top-right Research Center scientist (vanilla: flavor text only).
+  data.gen2Scripts["44:4ac6"] = {
+    { op = "faceplayer" },
+    { op = "opentext" },
+    { op = "writetext", text = "44:4d71" },
+    { op = "waitbutton" },
+    { op = "closetext" },
+    { op = "end" },
+  }
+  -- Chamber solved sequences: solve commits the events, no reward.
+  data.gen2Scripts["44:44ea"] = {
+    { op = "setevent", event = 1797 },
+    { op = "setevent", event = 673 },
+    { op = "setflag", flag = 42 },
+    { op = "setevent", event = 1870 },
+    { op = "setmapscene", args = { 27, 1 } },
+    { op = "end" },
+  }
+  data.gen2Scripts["44:4692"] = {
+    { op = "setevent", event = 1797 },
+    { op = "setevent", event = 674 },
+    { op = "setflag", flag = 43 },
+    { op = "setmapscene", args = { 27, 1 } },
+    { op = "end" },
+  }
+  data.gen2Scripts["44:476c"] = {
+    { op = "setevent", event = 1797 },
+    { op = "setevent", event = 675 },
+    { op = "setflag", flag = 44 },
+    { op = "setmapscene", args = { 27, 1 } },
+    { op = "end" },
+  }
+  -- Chamber MAPCALLBACK_TILES: vanilla guard only.
+  data.gen2Scripts["44:44ce"] = {
+    { op = "checkevent", event = 673 },
+    { op = "iffalse", script = "44:44d6" },
+    { op = "endcallback" },
+  }
+  data.gen2Scripts["44:4676"] = {
+    { op = "checkevent", event = 674 },
+    { op = "iffalse", script = "44:467d" },
+    { op = "endcallback" },
+  }
+  data.gen2Scripts["44:4750"] = {
+    { op = "checkevent", event = 675 },
+    { op = "iffalse", script = "44:4757" },
+    { op = "endcallback" },
+  }
+end
+seedGoldFossils()
+
 local run = T.sdk.loadMod("mods/crystal_legacy_changes", {
   data = data,
   generation = 2,
@@ -852,6 +912,200 @@ end
 T.eq(deducted("57:68a9"), 100, "ABRA takecoins deducts 100")
 T.eq(deducted("57:68d7"), 800, "PORYGON takecoins deducts 800")
 T.eq(deducted("57:6905"), 1500, "DRATINI takecoins deducts 1500")
+
+-- ---- Phase 3a: fossils + Ruins of Alph --------------------------------
+local fossilsData = dofile("mods/crystal_legacy_changes/data/fossils.lua")
+local fossils = export.fossils
+T.check(type(fossils) == "table", "exports carry the fossils section")
+
+-- Items: registered, inert gold-shaped items at the CL indices (above the
+-- ROM's max of 250 -- the ROM renumbered the item table and dropped the
+-- fossils entirely, so these are brand-new records).
+local domeItem = data.items and data.items.DOME_FOSSIL
+T.check(type(domeItem) == "table", "DOME_FOSSIL registered as an item")
+T.eq(domeItem.index, 251, "DOME_FOSSIL sits at index 251")
+T.eq(domeItem.pocketId, 1, "DOME_FOSSIL lives in the ITEMS pocket")
+T.eq(domeItem.price, 0, "DOME_FOSSIL is price 0")
+T.eq(domeItem.canSelect, false, "DOME_FOSSIL cannot be selected")
+T.eq(domeItem.canToss, true, "DOME_FOSSIL is tossable")
+T.eq(domeItem.battleMenu, "ITEMMENU_NOUSE", "DOME_FOSSIL has no battle use")
+T.eq(domeItem.fieldMenu, "ITEMMENU_NOUSE", "DOME_FOSSIL has no field use")
+T.eq(domeItem.heldEffect, "HELD_NONE", "DOME_FOSSIL carries no held effect")
+local helixItem = data.items and data.items.HELIX_FOSSIL
+T.check(type(helixItem) == "table", "HELIX_FOSSIL registered as an item")
+T.eq(helixItem.index, 252, "HELIX_FOSSIL sits at index 252")
+T.eq(helixItem.canSelect, false, "HELIX_FOSSIL is inert")
+local amberItem = data.items and data.items.OLD_AMBER
+T.check(type(amberItem) == "table", "OLD_AMBER registered as an item")
+T.eq(amberItem.index, 253, "OLD_AMBER sits at index 253")
+T.eq(amberItem.canSelect, false, "OLD_AMBER is inert")
+T.eq(export.rebalance.fossils.items, 3, "exports report the three fossil items")
+
+-- Text rows land in data.gen2Text under the mod prefix.
+for key, text in pairs(fossilsData.text or {}) do
+  T.eq(data.gen2Text["crystal_legacy_changes:" .. key], text,
+    "text row registered: " .. key)
+end
+
+-- Commands are merged into the table the VM dispatches (runModCommand).
+T.check(type(data.commands) == "table", "commands table merged on Gold")
+for _, verb in ipairs({
+  "crystal_legacy_changes:revive_fossil",
+  "crystal_legacy_changes:ruins_reward",
+  "crystal_legacy_changes:ruins_deferred",
+}) do
+  T.check(type(data.commands[verb]) == "function", "command registered: " .. verb)
+end
+T.eq(export.rebalance.fossils.commands, 3, "exports report the three commands")
+
+-- The scientist script row is replaced by a straight command run.
+local scientistScript = scripts["44:4ac6"]
+T.check(type(scientistScript) == "table", "scientist script row replaced")
+local reviveRows = 0
+for _, step in ipairs(scientistScript) do
+  if type(step) == "table" and step[1] == "crystal_legacy_changes:revive_fossil" then
+    reviveRows = reviveRows + 1
+  end
+end
+T.eq(reviveRows, 1, "scientist talks to the revival command")
+
+-- Chamber solved sequences carry the reward arm after the event flags.
+local function rewardChamberOf(key)
+  local chamber
+  for _, step in ipairs(scripts[key] or {}) do
+    if type(step) == "table" and step[1] == "crystal_legacy_changes:ruins_reward" then
+      chamber = step[2]
+    end
+  end
+  return chamber
+end
+T.eq(rewardChamberOf("44:44ea"), "KABUTO", "KABUTO solve rewards")
+T.eq(rewardChamberOf("44:4692"), "OMANYTE", "OMANYTE solve rewards")
+T.eq(rewardChamberOf("44:476c"), "AERODACTYL", "AERODACTYL solve rewards")
+T.eq(export.rebalance.fossils.scripts, 7,
+  "exports report 7 script patches (scientist + 3 solves + 3 callbacks)")
+
+-- Callbacks carry the deferred-claim arm first.
+local function deferredChamberOf(key)
+  local step = (scripts[key] or {})[1]
+  if type(step) == "table" and step[1] == "crystal_legacy_changes:ruins_deferred" then
+    return step[2]
+  end
+end
+T.eq(deferredChamberOf("44:44ce"), "KABUTO", "KABUTO callback claims")
+T.eq(deferredChamberOf("44:4676"), "OMANYTE", "OMANYTE callback claims")
+T.eq(deferredChamberOf("44:4750"), "AERODACTYL", "AERODACTYL callback claims")
+
+-- Behavior: drive the handlers against a stub game + vm (headless).  The vm
+-- mirrors the World's hook closures (dot-called, index-based), mod.save backs
+-- the one-per-save flags, mod.game is the injected stub.
+local function fakeVm(inventory)
+  local state = { given = nil }
+  return {
+    inventory = inventory,
+    seen = {},
+    state = state,
+    showText = function(self, key) self.seen[#self.seen + 1] = key end,
+    hasItemFn = function(idx) return inventory[idx] ~= nil end,
+    takeItemFn = function(idx) inventory[idx] = nil end,
+    giveItemFn = function(idx, qty)
+      inventory[idx] = (inventory[idx] or 0) + (qty or 1)
+      return true
+    end,
+    givePokeFn = function(species, level, item)
+      state.given = { species = species, level = level, item = item }
+    end,
+  }
+end
+local function stubSave(badges, engineFlags, partySize)
+  local party = {}
+  for i = 1, partySize or 0 do party[i] = { species = "PICHU" } end
+  return {
+    player = { badges = badges or {} },
+    engineFlags = engineFlags or {},
+    party = party,
+  }
+end
+local function withGame(save)
+  run.loader.game = { save = save }
+end
+local function clearSaveFlags()
+  run.loader.modSave["crystal_legacy_changes"] = {}
+end
+
+-- Scientist: no fossil -> greet + none, nothing revived.
+local vm = fakeVm({})
+withGame(stubSave({}, {}, 0))
+fossils.revive({ vm = vm })
+T.eq(vm.seen[1], "crystal_legacy_changes:revive_greet", "scientist greets first")
+T.eq(vm.seen[2], "crystal_legacy_changes:revive_none", "no fossil -> none text")
+T.eq(vm.state.given, nil, "no fossil: nothing revived")
+
+-- Scientist: Dome Fossil -> Kabuto L15, fossil consumed.
+vm = fakeVm({ [251] = 1 })
+withGame(stubSave({}, {}, 0))
+fossils.revive({ vm = vm })
+T.eq(vm.seen[2], "crystal_legacy_changes:revive_kabuto", "Dome -> Kabuto intro")
+T.eq(vm.seen[3], "crystal_legacy_changes:got_kabuto", "Dome -> received text")
+T.eq(vm.inventory[251], nil, "Dome Fossil consumed on revival")
+T.check(type(vm.state.given) == "table", "a mon is given")
+T.eq(vm.state.given.species, 140, "Kabuto species index 140")
+T.eq(vm.state.given.level, 15, "Kabuto level 15 (post-Gym 3)")
+T.eq(vm.state.given.item, nil, "revived mon carries no held item")
+
+-- Scientist: Helix -> Omanyte L20, Old Amber -> Aerodactyl L25.
+vm = fakeVm({ [252] = 1 })
+withGame(stubSave({}, {}, 0))
+fossils.revive({ vm = vm })
+T.eq(vm.state.given.species, 138, "Omanyte species index 138")
+T.eq(vm.state.given.level, 20, "Omanyte level 20 (post-Gym 4)")
+vm = fakeVm({ [253] = 1 })
+withGame(stubSave({}, {}, 0))
+fossils.revive({ vm = vm })
+T.eq(vm.state.given.species, 142, "Aerodactyl species index 142")
+T.eq(vm.state.given.level, 25, "Aerodactyl level 25 (post-Gym 7)")
+
+-- Scientist: full party -> fossil kept, nothing revived.  (The engine's
+-- World:givePoke ignores Party.add's return, so the mod must check first.)
+vm = fakeVm({ [252] = 1 })
+withGame(stubSave({}, {}, 6))
+fossils.revive({ vm = vm })
+T.eq(vm.seen[2], "crystal_legacy_changes:revive_party_full",
+  "full party -> party full text")
+T.eq(vm.inventory[252], 1, "fossil kept at a full party")
+T.eq(vm.state.given, nil, "full party: nothing revived")
+
+-- Puzzle reward: badge-gated and one-per-save.
+clearSaveFlags()
+vm = fakeVm({})
+withGame(stubSave({}, { [673] = true }, 0))
+fossils.reward({ vm = vm }, "KABUTO")
+T.eq(#vm.seen, 0, "no badge: no reward text")
+T.eq(vm.inventory[251], nil, "no badge: no fossil given")
+vm = fakeVm({})
+withGame(stubSave({ PLAIN = true }, { [673] = true }, 0))
+fossils.reward({ vm = vm }, "KABUTO")
+T.eq(vm.seen[1], "crystal_legacy_changes:ruins_got_kabuto",
+  "reward text on solve with badge")
+T.eq(vm.inventory[251], 1, "Dome Fossil handed out")
+fossils.reward({ vm = vm }, "KABUTO")
+T.eq(vm.inventory[251], 1, "reward is one-per-save")
+
+-- Deferred claim: solved before the badge -> claimed on chamber entry after.
+clearSaveFlags()
+vm = fakeVm({})
+withGame(stubSave({ GLACIER = true }, { [675] = true }, 0))
+fossils.deferred({ vm = vm }, "AERODACTYL")
+T.eq(vm.seen[1], "crystal_legacy_changes:ruins_got_aerodactyl", "deferred claim text")
+T.eq(vm.inventory[253], 1, "Old Amber claimed on entry")
+vm = fakeVm({})
+withGame(stubSave({ GLACIER = true }, {}, 0))
+fossils.deferred({ vm = vm }, "AERODACTYL")
+T.eq(#vm.seen, 0, "unsolved chamber: nothing claimed")
+vm = fakeVm({})
+withGame(stubSave({}, { [675] = true }, 0))
+fossils.deferred({ vm = vm }, "AERODACTYL")
+T.eq(#vm.seen, 0, "no badge: nothing claimed on entry")
 
 run.release()
 T.finish("crystal_legacy_changes")

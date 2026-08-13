@@ -2494,5 +2494,61 @@ T.eq(export.rebalance.rocketBase.objects, 4, "4 NPC moves")
 T.eq(export.rebalance.rocketBase.sprites, 1, "1 sprite swap (exec -> ARCHER)")
 T.eq(export.rebalance.rocketBase.added, 1, "1 appended object (UltraBall)")
 
+-- Phase 4a #5 (item evolutions): the engine's EvoStoneEffect port is
+-- data-driven -- the RECORDS rows only know the family, Evolution.checkMon
+-- names the target from this mod's evolutions.lua -- so every stone in the
+-- CL item set must carry the evolve row and honour the mod's rows untouched.
+local ItemEffects = require("src.core.gen2.ItemEffects")
+local Mon = require("src.battle.gen2.Mon")
+local pokemon = run.loader.content.pokemon
+-- The fixture has no base data for the CL evo species (the loader folded the
+-- mod's evolutions over an empty base), so give the two species under test
+-- real stats; Mon.new and Evolution.checkMon read data.pokemon directly.
+local function evoBase(id, stats)
+  local def = pokemon:get(id) or {}
+  def.baseStats = { hp = stats[1], attack = stats[2], defense = stats[3],
+                    speed = stats[4], specialAttack = stats[5], specialDefense = stats[6] }
+  def.growthRate = def.growthRate or "GROWTH_MEDIUM_FAST"
+  def.types = def.types or { "WATER", "WATER" }
+  def.name = def.name or id
+  data.pokemon[id] = def
+  return def
+end
+evoBase("POLIWHIRL", { 65, 65, 65, 90, 50, 50 })
+evoBase("GOLDEEN", { 45, 67, 60, 63, 35, 50 })
+-- The six CL evo items all carry the family (action/needsTarget/battle).
+local function evoItem(id)
+  local row = ItemEffects.RECORDS[id]
+  T.check(row ~= nil, id .. " has an item-effects row")
+  T.eq(row.action, "evolve", id .. " family is evolve")
+  T.eq(row.needsTarget, true, id .. " needs a party target")
+  T.eq(row.battle, true, id .. " is legal in the battle pack")
+end
+evoItem("WATER_STONE")
+evoItem("UP_GRADE")
+evoItem("KINGS_ROCK")
+evoItem("METAL_COAT")
+evoItem("DRAGON_SCALE")
+evoItem("BRICK_PIECE")
+-- POLIWHIRL -> POLIWRATH: the engine never names the target, the mod's row does.
+local poliwhirl = Mon.new(data, "POLIWHIRL", 40, { moves = {} })
+local stone = ItemEffects.useOnMon("WATER_STONE", poliwhirl, data)
+T.check(stone.used, "WATER_STONE activates on POLIWHIRL")
+T.eq(stone.entry.into, "POLIWRATH", "target comes from the mod's evolutions.lua")
+-- A held EVERSTONE refuses (EvoStoneEffect's check before wForceEvolution).
+local holder = Mon.new(data, "POLIWHIRL", 40, { moves = {}, item = "EVERSTONE" })
+local refused = ItemEffects.useOnMon("WATER_STONE", holder, data)
+T.check(not refused.used, "EVERSTONE holder refuses the stone")
+T.eq(refused.text, ItemEffects.TEXT_NO_EFFECT, "refusal is the no-effect line")
+-- A stone with no row for the species is a no-op, and wForceEvolution shuts
+-- every non-ITEM method, so GOLDEEN's EVOLVE_LEVEL row cannot fire from a pack.
+local wrong = ItemEffects.useOnMon("MOON_STONE", poliwhirl, data)
+T.check(not wrong.used, "a stone with no row is a no-op")
+local goldeen = Mon.new(data, "GOLDEEN", 40, { moves = {} })
+local levelOnly = ItemEffects.useOnMon("WATER_STONE", goldeen, data)
+T.check(not levelOnly.used, "wForceEvolution shuts the EVOLVE_LEVEL row")
+-- Pack routing answers the family before a target exists.
+T.eq(ItemEffects.partyAction("WATER_STONE"), "evolve", "pack menu routes to the party picker")
+
 run.release()
 T.finish("crystal_legacy_changes")

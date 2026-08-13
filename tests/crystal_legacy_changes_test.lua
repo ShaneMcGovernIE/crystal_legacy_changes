@@ -260,6 +260,60 @@ local function seedGoldEvolutions()
 end
 seedGoldEvolutions()
 
+-- Phase 3 game-corner step: the prize menu is not a data table -- the strings
+-- are inline on gold's loadmenu script rows and each prize arm is its own
+-- script row with the price little-endian ({lo, hi}) on checkcoins/takecoins
+-- and the species/level on givepoke.  The mod patches those rows in place on
+-- mods.loaded (same seam as marts).  Seed gold-shaped rows with junk so a
+-- no-op patch would leave the gold ABRA 200 L10 / EKANS 700 L10 / DRATINI
+-- 2100 L10 arms and menu strings intact.
+local function seedGoldGameCorner()
+  local function arm(checkArgs, takeArgs, species, level)
+    return {
+      { op = "checkcoins", args = checkArgs },
+      { op = "ifequal", value = 2, script = "57:6830" },
+      { op = "readvar", variable = 1 },
+      { op = "ifequal", value = 6, script = "57:6836" },
+      { op = "getmonname", buffer = 0, species = species },
+      { op = "scall", script = "57:6820" },
+      { op = "iffalse", script = "57:683c" },
+      { op = "waitsfx" },
+      { op = "playsound", id = 34 },
+      { op = "writetext", text = "57:6b22" },
+      { op = "waitbutton" },
+      { op = "setval", args = { species } },
+      { op = "special", id = 56 },
+      { op = "givepoke", species = species, level = level },
+      { op = "takecoins", args = takeArgs },
+      { op = "sjump", script = "57:688f" },
+    }
+  end
+  local goldMenuItems = {
+    "ABRA        200",
+    "EKANS       700",
+    "DRATINI    2100",
+    "CANCEL",
+  }
+  data.gen2Scripts = data.gen2Scripts or {}
+  -- "57:688f" is the post-prize re-entry copy of the menu.
+  for _, key in ipairs({ "57:6880", "57:688f" }) do
+    data.gen2Scripts[key] = {
+      { op = "writetext", text = "57:6a97" },
+      { op = "loadmenu", menu = { items = goldMenuItems } },
+      { op = "verticalmenu" },
+      { op = "ifequal", value = 1, script = "57:68a9" },
+      { op = "ifequal", value = 2, script = "57:68d7" },
+      { op = "ifequal", value = 3, script = "57:6905" },
+      { op = "sjump", script = "57:683c" },
+    }
+  end
+  -- Gold arms: ABRA 200 L10 / EKANS 700 L10 / DRATINI 2100 L10.
+  data.gen2Scripts["57:68a9"] = arm({ 200, 0 }, { 200, 0 }, 63, 10)
+  data.gen2Scripts["57:68d7"] = arm({ 188, 2 }, { 188, 2 }, 23, 10)
+  data.gen2Scripts["57:6905"] = arm({ 52, 8 }, { 52, 8 }, 147, 10)
+end
+seedGoldGameCorner()
+
 local run = T.sdk.loadMod("mods/crystal_legacy_changes", {
   data = data,
   generation = 2,
@@ -707,6 +761,97 @@ T.eq(fires({ species = "TYROGUE", level = 20, stats = { attack = 30, defense = 2
   "HITMONLEE", "high-attack Tyrogue becomes Hitmonlee")
 T.eq(fires({ species = "TYROGUE", level = 20, stats = { attack = 20, defense = 30 } }, {}),
   "HITMONCHAN", "high-defense Tyrogue becomes Hitmonchan")
+
+-- Phase 3 game-corner step: the CL prize list is a different list per the
+-- legacy design (ABRA 100 / PORYGON 800 / DRATINI 1500, replacing gold's
+-- ABRA 200 / EKANS 700 / DRATINI 2100, and PORYGON replaces EKANS), and the
+-- givepoke levels drop to L5/L15/L15.  The patch mutates the gold rows in
+-- place, so the assertions read data.gen2Scripts -- the same table the VM
+-- dispatches at runtime.
+local staticsData = dofile("mods/crystal_legacy_changes/data/statics.lua")
+local gc = staticsData.gameCorner
+T.check(type(gc) == "table", "statics data file carries the gameCorner section")
+T.eq(export.rebalance.statics, 3,
+  "exports report all three game-corner prize arms patched")
+
+local scripts = data.gen2Scripts
+T.check(type(scripts) == "table", "gen2Scripts survives the load")
+
+local function menuItemsOf(key)
+  local items
+  for _, step in ipairs(scripts[key] or {}) do
+    if step.op == "loadmenu" and step.menu then items = step.menu.items end
+  end
+  return items
+end
+local function joinItems(key)
+  local items = menuItemsOf(key) or {}
+  local out = {}
+  for _, item in ipairs(items) do out[#out + 1] = item end
+  return table.concat(out, "|")
+end
+
+T.eq(joinItems("57:6880"),
+  "ABRA        100|PORYGON     800|DRATINI    1500|CANCEL",
+  "main prize menu carries the CL item list")
+T.eq(joinItems("57:688f"),
+  "ABRA        100|PORYGON     800|DRATINI    1500|CANCEL",
+  "post-prize re-entry menu carries the CL item list")
+
+local function coins(key)
+  for _, step in ipairs(scripts[key] or {}) do
+    if step.op == "checkcoins" then
+      return step.args[1] + 256 * step.args[2]
+    end
+  end
+end
+local function given(key)
+  for _, step in ipairs(scripts[key] or {}) do
+    if step.op == "givepoke" then
+      return step.species, step.level
+    end
+  end
+end
+local function namedSpecies(key)
+  for _, step in ipairs(scripts[key] or {}) do
+    if step.op == "getmonname" then return step.species end
+  end
+end
+local function setvalOf(key)
+  for _, step in ipairs(scripts[key] or {}) do
+    if step.op == "setval" then return step.args[1] end
+  end
+end
+
+T.eq(coins("57:68a9"), 100, "ABRA costs 100 coins (gold: 200)")
+local abraSpecies, abraLevel = given("57:68a9")
+T.eq(abraSpecies, 63, "ABRA arm gives species 63")
+T.eq(abraLevel, 5, "ABRA is level 5 (gold: 10)")
+
+T.eq(coins("57:68d7"), 800, "PORYGON costs 800 coins (gold EKANS: 700)")
+local porygonSpecies, porygonLevel = given("57:68d7")
+T.eq(porygonSpecies, 137, "EKANS arm now gives PORYGON (137)")
+T.eq(porygonLevel, 15, "PORYGON is level 15 (gold: 10)")
+T.eq(namedSpecies("57:68d7"), 137, "getmonname follows the new species")
+T.eq(setvalOf("57:68d7"), 137, "setval follows the new species")
+
+T.eq(coins("57:6905"), 1500, "DRATINI costs 1500 coins (gold: 2100)")
+local dratiniSpecies, dratiniLevel = given("57:6905")
+T.eq(dratiniSpecies, 147, "DRATINI arm gives species 147")
+T.eq(dratiniLevel, 15, "DRATINI is level 15 (gold: 10)")
+
+-- No gold value survives: the arms must carry the CL price on takecoins too
+-- (the deduction, not just the check).
+local function deducted(key)
+  for _, step in ipairs(scripts[key] or {}) do
+    if step.op == "takecoins" then
+      return step.args[1] + 256 * step.args[2]
+    end
+  end
+end
+T.eq(deducted("57:68a9"), 100, "ABRA takecoins deducts 100")
+T.eq(deducted("57:68d7"), 800, "PORYGON takecoins deducts 800")
+T.eq(deducted("57:6905"), 1500, "DRATINI takecoins deducts 1500")
 
 run.release()
 T.finish("crystal_legacy_changes")

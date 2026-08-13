@@ -237,6 +237,65 @@ local function applyMarts(mod, data, counts)
   end)
 end
 
+-- Statics & gifts (Phase 3b+c): story content rides the Gen 2 bytecode VM,
+-- which dispatches decoded rows from data.gen2Scripts (merged mod rows and
+-- gold's ROM rows by ANY key).  Prize menus are inline on loadmenu rows and
+-- each prize arm is its own script row, so we patch those rows in place on
+-- mods.loaded -- the same seam applyMarts uses (payload.data is game.data
+-- in-game, opts.data under the SDK).
+local function applyStatics(mod, data, counts)
+  counts.statics = 0
+  mod.events:on("mods.loaded", function(payload)
+    local target = payload and payload.data
+    if not target then return end
+    local scripts = target.gen2Scripts
+    if type(scripts) ~= "table" then return end
+
+    local gc = data.gameCorner
+    if type(gc) ~= "table" then return end
+
+    -- Prize menu strings live inline on the loadmenu rows (the "57:688f"
+    -- copy is the post-prize re-entry).  Swap both to the CL item list.
+    for _, key in ipairs(gc.menu or {}) do
+      local row = scripts[key]
+      if type(row) == "table" then
+        for _, step in ipairs(row) do
+          if type(step) == "table" and step.op == "loadmenu" then
+            step.menu = step.menu or {}
+            step.menu.items = gc.items
+          end
+        end
+      end
+    end
+
+    -- Each prize arm carries its price little-endian ({lo, hi}) in the
+    -- checkcoins/takecoins ops plus the species/level in givepoke (and the
+    -- matching getmonname/setval species for the name + party-scan).
+    for _, prize in ipairs(gc.prizes or {}) do
+      local row = scripts[prize.script]
+      if type(row) == "table" then
+        local lo = prize.price % 256
+        local hi = math.floor(prize.price / 256)
+        for _, step in ipairs(row) do
+          if type(step) == "table" then
+            if step.op == "checkcoins" or step.op == "takecoins" then
+              step.args = { lo, hi }
+            elseif step.op == "givepoke" then
+              step.species = prize.species
+              step.level = prize.level
+            elseif step.op == "getmonname" then
+              step.species = prize.species
+            elseif step.op == "setval" then
+              step.args = { prize.species }
+            end
+          end
+        end
+        counts.statics = counts.statics + 1
+      end
+    end
+  end)
+end
+
 return function(mod)
   local counts = applyRebalance(mod, loadSibling(mod, "rebalance.lua"))
   counts.learnsets = applyLearnsets(mod, loadSibling(mod, "learnsets.lua"))
@@ -247,5 +306,7 @@ return function(mod)
   counts.clOnly = 0
   applyMarts(mod, loadSibling(mod, "data/marts.lua"), counts)
   applyEvolutions(mod, loadSibling(mod, "data/evolutions.lua"), counts)
+  counts.statics = 0
+  applyStatics(mod, loadSibling(mod, "data/statics.lua"), counts)
   mod.exports.rebalance = counts
 end

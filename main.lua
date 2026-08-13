@@ -153,11 +153,72 @@ local function applyTrainers(mod, data)
   return count
 end
 
+-- Marts: Gold has no marts content registry.  The engine seeds
+-- game.data.gen2Marts = { bargain = ..., lists = {34 gold-positional
+-- shelves} } (Game2.lua) before mods load, and World/MartMenu read that
+-- table by reference afterwards.  The real seam is the mods.loaded event,
+-- fired at the end of Loader:load with { loader, data } where data is
+-- game.data in-game (opts.data under the SDK).  We swap the 34 shelves in
+-- place with the Crystal Legacy stock, preserving bargain.  GOLD_MART_ORDER
+-- is the gold engine's 34-slot order (constants/mart_constants.asm, verified
+-- against the gold cache); the 5 CL-only marts (BERRYS, BERRYS_2,
+-- CELADON_3F_2, CELADON_5F_1_2, CELADON_5F_2_2) have no gold slot
+-- (NUM_MARTS = 34) and are unreachable in this engine.
+local GOLD_MART_ORDER = {
+  "MART_CHERRYGROVE", "MART_CHERRYGROVE_DEX", "MART_VIOLET", "MART_AZALEA",
+  "MART_CIANWOOD", "MART_GOLDENROD_2F_1", "MART_GOLDENROD_2F_2",
+  "MART_GOLDENROD_3F", "MART_GOLDENROD_4F", "MART_GOLDENROD_5F_1",
+  "MART_GOLDENROD_5F_2", "MART_GOLDENROD_5F_3", "MART_GOLDENROD_5F_4",
+  "MART_OLIVINE", "MART_ECRUTEAK", "MART_MAHOGANY_1", "MART_MAHOGANY_2",
+  "MART_BLACKTHORN", "MART_VIRIDIAN", "MART_PEWTER", "MART_CERULEAN",
+  "MART_LAVENDER", "MART_VERMILION", "MART_CELADON_2F_1",
+  "MART_CELADON_2F_2", "MART_CELADON_3F", "MART_CELADON_4F",
+  "MART_CELADON_5F_1", "MART_CELADON_5F_2", "MART_FUCHSIA",
+  "MART_SAFFRON", "MART_MT_MOON", "MART_INDIGO_PLATEAU", "MART_UNDERGROUND",
+}
+
+local function applyMarts(mod, data, counts)
+  counts.marts = 0
+  counts.clOnly = 0
+  mod.events:on("mods.loaded", function(payload)
+    local target = payload and payload.data
+    if not target then return end
+    local marts = target.gen2Marts
+    if type(marts) ~= "table" then
+      marts = { bargain = {}, lists = {} }
+      target.gen2Marts = marts
+    end
+    marts.bargain = marts.bargain or {}
+    local lists = marts.lists
+    if type(lists) ~= "table" then
+      lists = {}
+      marts.lists = lists
+    end
+    for i, id in ipairs(GOLD_MART_ORDER) do
+      local stock = data.marts[id]
+      if stock then
+        lists[i] = stock
+        counts.marts = counts.marts + 1
+      end
+    end
+    for id in pairs(data.marts or {}) do
+      local found = false
+      for _, gold in ipairs(GOLD_MART_ORDER) do
+        if gold == id then found = true break end
+      end
+      if not found then counts.clOnly = counts.clOnly + 1 end
+    end
+  end)
+end
+
 return function(mod)
   local counts = applyRebalance(mod, loadSibling(mod, "rebalance.lua"))
   counts.learnsets = applyLearnsets(mod, loadSibling(mod, "learnsets.lua"))
   counts.tmhm = applyTmhm(mod, loadSibling(mod, "tmhm.lua"))
   counts.encounters = applyEncounters(mod, loadSibling(mod, "data/encounters.lua"))
   counts.trainers = applyTrainers(mod, loadSibling(mod, "data/trainers.lua"))
+  counts.marts = 0
+  counts.clOnly = 0
+  applyMarts(mod, loadSibling(mod, "data/marts.lua"), counts)
   mod.exports.rebalance = counts
 end

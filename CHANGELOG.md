@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.7.0] - 2026-08-13
+
+### Added
+
+- Marts data patch: swaps the engine's 34 Gold mart shelves in place with
+  Crystal Legacy stock from TSP's design document (Cianwood, Mahogany with the
+  evolution-item shelf, Blackthorn, Celadon floors, Goldenrod floors), applied
+  on the `mods.loaded` event against `game.data.gen2Marts` and preserving the
+  Bargain Shop flag. Applied by verified Gold shelf order, never by Crystal
+  position.
+- 21 new test assertions covering the marts patch (suite now 130/130); the
+  fixture seeds gold-shaped junk shelves so a no-op or deep-merge patch fails.
+- Five Crystal-only shelves with no Gold slot are tracked and held back
+  (BERRYS, BERRYS_2, CELADON_3F_2, CELADON_5F_1_2, CELADON_5F_2_2) — they
+  need engine-side registry entries and will be revisited with Phase 4.
+
 ## [0.6.0] - 2026-08-13
 
 ### Added

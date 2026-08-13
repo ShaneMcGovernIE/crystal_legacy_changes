@@ -242,6 +242,83 @@ T.eq(trainers:get("BEAUTY").trainers[1].name, "VICTORIA",
 T.eq(trainers:get("BEAUTY").trainers[1].party[1].species, "TEDDIURSA",
   "Beauty Victoria leads with Teddiursa")
 
+-- Phase 2 trainers step: TSP doc feature coverage -- gym badge variants,
+-- Elite Four, Kanto leaders, rival, Red, Rocket (incl. Eto).
+T.eq(#trainers:get("PRYCE").trainers, 4,
+  "Pryce has his four badge-variant parties")
+T.eq(#trainers:get("JASMINE").trainers, 4,
+  "Jasmine has her four badge-variant parties")
+T.eq(#trainers:get("CHUCK").trainers, 4,
+  "Chuck has his four badge-variant parties")
+
+T.eq(#trainers:get("WILL").trainers, 2,
+  "Will has his base and rematch parties")
+T.eq(trainers:get("WILL").trainers[1].party[1].species, "GIRAFARIG",
+  "Will leads with Girafarig")
+T.eq(trainers:get("WILL").trainers[1].party[1].level, 48,
+  "Will's Girafarig is level 48")
+T.eq(trainers:get("KOGA").trainers[1].party[1].species, "ARIADOS",
+  "Koga leads with Ariados")
+T.eq(trainers:get("BRUNO").trainers[1].party[1].species, "HITMONCHAN",
+  "Bruno leads with Hitmonchan")
+T.eq(trainers:get("KAREN").trainers[1].party[1].species, "UMBREON",
+  "Karen leads with Umbreon")
+
+T.eq(#trainers:get("BROCK").trainers, 1,
+  "Brock has his single Kanto party")
+T.eq(trainers:get("BROCK").trainers[1].party[1].species, "GOLEM",
+  "Brock's Kanto team leads with Golem")
+T.eq(trainers:get("BROCK").trainers[1].party[1].level, 66,
+  "Brock's Golem is level 66")
+T.eq(trainers:get("BROCK").trainers[1].party[1].item, "QUICK_CLAW",
+  "Brock's Golem holds the Quick Claw")
+T.eq(trainers:get("MISTY").trainers[1].party[1].species, "GOLDUCK",
+  "Misty's Kanto team leads with Golduck")
+T.eq(trainers:get("BLUE").trainers[1].party[1].species, "ARTICUNO",
+  "Blue's champion rematch leads with Articuno")
+T.eq(trainers:get("BLUE").trainers[1].party[1].level, 69,
+  "Blue's Articuno is level 69")
+
+T.eq(#trainers:get("CHAMPION").trainers, 2,
+  "Lance has his base and rematch parties")
+T.eq(trainers:get("CHAMPION").trainers[1].name, "LANCE",
+  "The champion class's first trainer is Lance")
+T.eq(trainers:get("CHAMPION").trainers[1].party[2].species, "DRAGONITE",
+  "Lance's second party slot is Dragonite")
+T.eq(trainers:get("CHAMPION").trainers[1].party[2].item, "GOLD_BERRY",
+  "Lance's Dragonite holds a Gold Berry")
+
+T.eq(#trainers:get("RED").trainers, 2,
+  "Red has his base and rematch parties")
+T.eq(trainers:get("RED").trainers[1].party[1].species, "PIKACHU",
+  "Red leads with Pikachu")
+T.eq(trainers:get("RED").trainers[1].party[1].level, 93,
+  "Red's Pikachu is level 93")
+T.eq(trainers:get("RED").trainers[1].party[1].item, "LIGHT_BALL",
+  "Red's Pikachu holds the Light Ball")
+
+T.eq(#trainers:get("RIVAL1").trainers, 15,
+  "The rival's fifteen battles span the game")
+T.eq(#trainers:get("RIVAL2").trainers, 6,
+  "The rival's six rematch battles follow the postgame")
+
+T.eq(#trainers:get("ROCKET_LEADER").trainers, 2,
+  "Archer has his base and rematch parties")
+T.eq(trainers:get("ROCKET_LEADER").trainers[1].name, "ARCHER",
+  "The Rocket leader class's first trainer is Archer")
+T.eq(trainers:get("ROCKET_LEADER").trainers[1].party[5].species, "SLOWBRO",
+  "Archer's fifth party slot is Slowbro")
+T.eq(#trainers:get("GRUNTM").trainers, 31,
+  "The male grunt class carries all thirty-one grunt battles")
+T.eq(trainers:get("GRUNTM").trainers[2].name, "ETO",
+  "The Rocket executive Eto rides the grunt class")
+T.eq(trainers:get("GRUNTM").trainers[2].party[1].species, "ELEKID",
+  "Eto's first battle leads with Elekid")
+T.eq(trainers:get("BOSS").trainers[1].name, "GIOVANNI",
+  "Giovanni returns as the boss class")
+T.eq(trainers:get("MYSTICALMAN").trainers[1].name, "EUSINE",
+  "Eusine rides the mystical man class")
+
 local export = run.loader.exports.crystal_legacy_changes
 T.check(export and export.rebalance and export.rebalance.moves > 0,
   "exports report applied move changes")

@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.5.0] - 2026-08-13
+
+### Added
+
+- Trainer data patch (`mod.content.trainers` class patches from
+  `data/trainers.lua`): Crystal Legacy gym, Elite Four, and post-game roster
+  changes from TSP's design document.
+  - Gym leaders: PRYCE/JASMINE/CHUCK 3-badge variants (4 parties each);
+    FALKNER/WHITNEY/BUGSY/MORTY/CLAIR keep their 2-party sets.
+  - Elite Four: WILL/KOGA/BRUNO/KAREN rebalanced teams with rematch parties.
+  - Kanto leaders: BROCK (GOLEM + QUICK_CLAW), MISTY, BLUE.
+  - CHAMPION LANCE rematch party (DRAGONITE + GOLD_BERRY), RED (Lv93
+    PIKACHU + LIGHT_BALL), RIVAL1/RIVAL2 rematches.
+  - Team Rocket incl. Eto: GRUNTM ETO members, ROCKET_LEADER (ARCHER),
+    BOSS (GIOVANNI), MYSTICALMAN (EUSINE).
+- Trainer held items deferred to Phase 4 (engine trainer-party schema has no
+  item field yet).
+
 ## [0.3.0] - 2026-08-11
 
 ### Added

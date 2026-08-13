@@ -585,6 +585,69 @@ local function seedGoldBirds()
 end
 seedGoldBirds()
 
+-- Phase 3c Celebi / GS Ball chain: gold ships NONE of it — no GS_BALL item
+-- (items.lua max index is 250), no Ilex shrine event (the (8,22) shrine
+-- bg_event is a plain text row), a vanilla apricorn-only Kurt, and a
+-- flavor-only Inner Chamber.  Seed gold-shaped rows so a no-op patch would
+-- leave the whole chain absent: no item at 251, no receptionist, no Kurt
+-- branch, no shrine repoint, no fallback researcher.
+local function seedGoldCelebi()
+  data.gen2Scripts = data.gen2Scripts or {}
+  -- Kurt (KurtsHouse): vanilla apricorn quest — faceplayer/opentext/...; the
+  -- mod splices two branch rows right after the opentext.
+  data.gen2Scripts["55:45e3"] = {
+    { op = "faceplayer" },
+    { op = "opentext" },
+    { op = "writetext", text = "55:4d36" },
+    { op = "yesorno" },
+    { op = "closetext" },
+    { op = "end" },
+  }
+  -- Goldenrod Pokecenter 1F: gold's 4 vanilla objects (NURSE, GAMEBOY_KID,
+  -- FISHER, TWIN), so the LINK_RECEPTIONIST must land as object #5.
+  data.gen2Maps = data.gen2Maps or {}
+  data.gen2Maps.GOLDENROD_POKECENTER_1F = {
+    id = "GOLDENROD_POKECENTER_1F",
+    objects = {},
+  }
+  for i, def in ipairs({
+    { sprite = "SPRITE_NURSE", x = 3, y = 1 },
+    { sprite = "SPRITE_GAMEBOY_KID", x = 7, y = 2 },
+    { sprite = "SPRITE_FISHER", x = 8, y = 6 },
+    { sprite = "SPRITE_TWIN", x = 0, y = 5 },
+  }) do
+    data.gen2Maps.GOLDENROD_POKECENTER_1F.objects[i] = {
+      eventFlag = 65535, index = i, sprite = def.sprite,
+      script = 0, scriptKey = "55:46c2", x = def.x, y = def.y,
+    }
+  end
+  -- Ilex Forest: the (8,22) shrine bg_event is vanilla plain text (the mod
+  -- repoints it to the shrine script).
+  data.gen2Maps.ILEX_FOREST = {
+    id = "ILEX_FOREST",
+    bgEvents = {
+      { scriptKey = "45:6989", x = 8, y = 22, kind = 0 },
+    },
+  }
+  -- Ruins of Alph Inner Chamber: gold's 3 flavor NPCs (FISHER, TEACHER,
+  -- GRAMPS), so the RESEARCHER must land as object #4.
+  data.gen2Maps.RUINS_OF_ALPH_INNER_CHAMBER = {
+    id = "RUINS_OF_ALPH_INNER_CHAMBER",
+    objects = {},
+  }
+  for i, def in ipairs({
+    { sprite = "SPRITE_FISHER", x = 4, y = 6 },
+    { sprite = "SPRITE_TEACHER", x = 9, y = 12 },
+    { sprite = "SPRITE_GRAMPS", x = 14, y = 9 },
+  }) do
+    data.gen2Maps.RUINS_OF_ALPH_INNER_CHAMBER.objects[i] = {
+      eventFlag = 65535, index = i, sprite = def.sprite,
+      script = 0, scriptKey = "44:44ce", x = def.x, y = def.y,
+    }
+  end
+end
+seedGoldCelebi()
+
 local run = T.sdk.loadMod("mods/crystal_legacy_changes", {
   data = data,
   generation = 2,
@@ -1106,8 +1169,8 @@ T.eq(fires({ species = "TYROGUE", level = 20, stats = { attack = 20, defense = 3
 local staticsData = dofile("mods/crystal_legacy_changes/data/statics.lua")
 local gc = staticsData.gameCorner
 T.check(type(gc) == "table", "statics data file carries the gameCorner section")
-T.eq(export.rebalance.statics, 13,
-  "exports report 3 game-corner prize arms + master command + shrine row + mew release + 3 bird catch scripts + 3 bird release splices + Moltres object")
+T.eq(export.rebalance.statics, 23,
+  "exports report 3 game-corner prize arms + master command + shrine row + mew release + 3 bird catch scripts + 3 bird release splices + Moltres object + 10 celebi chain steps")
 
 local scripts = data.gen2Scripts
 T.check(type(scripts) == "table", "gen2Scripts survives the load")
@@ -1246,8 +1309,8 @@ T.check(snorlax.text.sleeping:match("^SNORLAX is snoring"),
 T.check(snorlax.text.wake:match("^The POKéGEAR was placed")
   and snorlax.text.wake:match("SNORLAX woke up!$"),
   "wake text matches CL wording")
-T.eq(export.rebalance.statics, 13,
-  "pin adds no patched arm (statics count reflects master + mew + birds)")
+T.eq(export.rebalance.statics, 23,
+  "pin adds no patched arm (statics count reflects master + mew + birds + celebi chain)")
 
 -- ---- Phase 3b: Route 24 Mew dex-chain release --------------------------
 -- CL splices a Mew release into gold's EXISTING dex-completion branch; the
@@ -1459,6 +1522,166 @@ T.check(type(articuno.object) ~= "table", "Articuno object deferred (Phase 4)")
 T.check(type(zapdos.object) ~= "table", "Zapdos object deferred (Phase 4)")
 T.eq(articuno.objectIndex, 4, "Articuno will be the 4th Route 20 object")
 T.eq(zapdos.objectIndex, 1, "Zapdos will be the 1st Route 10 North object")
+
+-- ---- Phase 3c: Celebi / GS Ball chain -----------------------------------
+-- Full Crystal chain mod-side (gold ships none of it): GS_BALL item at 251,
+-- Pokecenter receptionist gift, Kurt hand-off (7-badge gate), Ilex shrine
+-- battle, Ruins of Alph fallback.  CL's Azalea return scene is simplified
+-- away (Kurt returns the ball in-house and sets the forest restless).
+local celebi = staticsData.celebi
+T.check(type(celebi) == "table", "statics data file carries the celebi section")
+T.eq(celebi.speciesIndex, 251, "Celebi species id 251 (dex order)")
+T.eq(celebi.level, 30, "Celebi is L30 (CL loadwildmon CELEBI, 30)")
+T.eq(celebi.badgeGate, 7, "Kurt hand-off gates on 7 badges")
+
+-- (a) GS_BALL item def at index 251 (free — gold's max is 250); MYSTERY_EGG
+-- row shape (KEY_ITEM, no menu use either way, not tossable, price 0).
+local gsBall = data.items and data.items.GS_BALL
+T.check(type(gsBall) == "table", "GS_BALL item def injected")
+T.eq(gsBall.index, 251, "GS_BALL sits at index 251 (free in gold's space)")
+T.eq(gsBall.id, "GS_BALL", "GS_BALL registered under its own id")
+T.eq(gsBall.pocket, "KEY_ITEM", "GS_BALL lives in the KEY_ITEM pocket")
+T.eq(gsBall.pocketId, 2, "KEY_ITEM pocket id 2")
+T.eq(gsBall.price, 0, "GS_BALL is price 0")
+T.eq(gsBall.canToss, false, "GS_BALL cannot be tossed")
+T.eq(gsBall.canSelect, false, "GS_BALL has no menu selection")
+T.eq(gsBall.battleMenu, "ITEMMENU_NOUSE", "GS_BALL has no battle use")
+T.eq(gsBall.fieldMenu, "ITEMMENU_NOUSE", "GS_BALL has no field use")
+T.eq(gsBall.heldEffect, "HELD_NONE", "GS_BALL carries no held effect")
+
+-- Flags 1945-48: all free in gold's space (birds hold 1942-44).
+T.eq(celebi.flags.restless, 1945, "EVENT_FOREST_IS_RESTLESS")
+T.eq(celebi.flags.canGive, 1946, "EVENT_CAN_GIVE_GS_BALL_TO_KURT")
+T.eq(celebi.flags.gave, 1947, "EVENT_GAVE_GS_BALL_TO_KURT")
+T.eq(celebi.flags.got, 1948, "EVENT_GOT_GS_BALL_FROM_POKECOM_CENTER")
+
+-- (b) The gift: a LINK_RECEPTIONIST appended as the 5th Goldenrod Pokecenter
+-- object (gold has 4), always visible, running the mod-owned gift script.
+local pc = data.gen2Maps and data.gen2Maps.GOLDENROD_POKECENTER_1F
+T.check(type(pc) == "table" and type(pc.objects) == "table",
+  "GOLDENROD_POKECENTER_1F survives the load")
+T.eq(#pc.objects, 5, "receptionist appended as the 5th Pokecenter object")
+local receptionist = pc.objects[5]
+T.check(type(receptionist) == "table", "receptionist object present")
+T.eq(receptionist.index, 5, "object index 5 (matches the gift script)")
+T.eq(receptionist.sprite, "SPRITE_LINK_RECEPTIONIST", "receptionist sprite")
+T.eq(receptionist.eventFlag, 65535, "always visible (in-script gates)")
+T.eq(receptionist.scriptKey, celebi.scriptKeys.gift, "object runs the gift script")
+T.eq(receptionist.x, 2, "receptionist at Pokecenter x 2")
+T.eq(receptionist.y, 5, "receptionist at Pokecenter y 5")
+T.eq(receptionist.movement, 6, "STANDING_DOWN (CL)")
+local giftRows = scripts[celebi.scriptKeys.gift]
+T.check(type(giftRows) == "table", "gift script registered")
+T.eq(giftRows[1].op, "faceplayer", "gift: faces the player")
+local giftGives
+for _, step in ipairs(giftRows) do
+  if step.op == "verbosegiveitem" then giftGives = step.item end
+end
+T.eq(giftGives, 251, "gift hands over the GS BALL (index 251)")
+local giftSetsGot, giftSetsCanGive
+for _, step in ipairs(giftRows) do
+  if step.op == "setevent" then
+    if step.event == 1948 then giftSetsGot = true end
+    if step.event == 1946 then giftSetsCanGive = true end
+  end
+end
+T.check(giftSetsGot, "gift sets EVENT_GOT_GS_BALL_FROM_POKECOM_CENTER")
+T.check(giftSetsCanGive, "gift sets EVENT_CAN_GIVE_GS_BALL_TO_KURT")
+
+-- (c) Kurt: two checkevent/iftrue rows spliced right after his opentext,
+-- branching to the mod's give/gave scripts; the vanilla apricorn flow is
+-- preserved further down.
+local kurtRows = scripts[celebi.kurt.scriptKey]
+T.check(type(kurtRows) == "table", "Kurt script survives the load")
+local kurtOpenPos
+for i, step in ipairs(kurtRows) do
+  if step.op == "opentext" then kurtOpenPos = i break end
+end
+T.check(type(kurtOpenPos) == "number", "Kurt opentext row found")
+T.eq(kurtRows[kurtOpenPos + 1].op, "checkevent", "splice row 1: checkevent")
+T.eq(kurtRows[kurtOpenPos + 1].event, 1947, "splice row 1 checks EVENT_GAVE_GS_BALL_TO_KURT")
+T.eq(kurtRows[kurtOpenPos + 2].op, "iftrue", "splice row 2: iftrue")
+T.eq(kurtRows[kurtOpenPos + 2].script, celebi.scriptKeys.kurtGave, "splice row 2 -> kurtGave")
+T.eq(kurtRows[kurtOpenPos + 3].op, "checkevent", "splice row 3: checkevent")
+T.eq(kurtRows[kurtOpenPos + 3].event, 1946, "splice row 3 checks EVENT_CAN_GIVE_GS_BALL_TO_KURT")
+T.eq(kurtRows[kurtOpenPos + 4].op, "iftrue", "splice row 4: iftrue")
+T.eq(kurtRows[kurtOpenPos + 4].script, celebi.scriptKeys.kurtGive, "splice row 4 -> kurtGive")
+local kurtGiveRows = scripts[celebi.scriptKeys.kurtGive]
+T.check(type(kurtGiveRows) == "table", "kurtGive script registered")
+local badgeGate, kurtTakes
+for _, step in ipairs(kurtGiveRows) do
+  if step.op == "readvar" then badgeGate = step.var end
+  if step.op == "takeitem" then kurtTakes = step.item end
+end
+T.eq(badgeGate, 0x07, "kurtGive gates on VAR_BADGES")
+T.eq(kurtTakes, 251, "kurtGive takes the GS BALL")
+local kurtGaveRows = scripts[celebi.scriptKeys.kurtGave]
+T.check(type(kurtGaveRows) == "table", "kurtGave script registered")
+local setsRestless, givesBack
+for _, step in ipairs(kurtGaveRows) do
+  if step.op == "setevent" and step.event == 1945 then setsRestless = true end
+  if step.op == "verbosegiveitem" then givesBack = step.item end
+end
+T.check(setsRestless, "kurtGave sets EVENT_FOREST_IS_RESTLESS")
+T.eq(givesBack, 251, "kurtGave returns the ball (simplified in-house return)")
+
+-- (d) Ilex shrine: the (8,22) bg_event repointed to the shrine script; quiet
+-- gold text until restless, then checkitem -> yesorno -> takeitem -> L30
+-- Celebi wild battle (no SPRITE_CELEBI needed — wild battle).
+local ilex = data.gen2Maps and data.gen2Maps.ILEX_FOREST
+T.check(type(ilex) == "table" and type(ilex.bgEvents) == "table",
+  "ILEX_FOREST survives the load")
+local shrineBg
+for _, bg in ipairs(ilex.bgEvents) do
+  if bg.x == 8 and bg.y == 22 then shrineBg = bg end
+end
+T.check(type(shrineBg) == "table", "shrine bg_event present at (8,22)")
+T.eq(shrineBg.scriptKey, celebi.scriptKeys.shrine, "shrine bg_event repointed to the shrine script")
+local shrineRows = scripts[celebi.scriptKeys.shrine]
+T.check(type(shrineRows) == "table", "shrine script registered")
+T.eq(shrineRows[1].op, "checkevent", "shrine: quiet until restless")
+T.eq(shrineRows[1].event, 1945, "shrine: checks EVENT_FOREST_IS_RESTLESS")
+local shrineBattleRows = scripts[celebi.scriptKeys.shrineBattle]
+T.check(type(shrineBattleRows) == "table", "shrine battle script registered")
+local takesBall, wildCelebi
+for _, step in ipairs(shrineBattleRows) do
+  if step.op == "takeitem" then takesBall = step.item end
+  if step.op == "loadwildmon" then wildCelebi = step end
+end
+T.eq(takesBall, 251, "shrine consumes the GS BALL")
+T.check(type(wildCelebi) == "table", "shrine loads a wild mon")
+T.eq(wildCelebi.species, 251, "wild Celebi species 251")
+T.eq(wildCelebi.level, 30, "wild Celebi L30")
+
+-- (e) Ruins of Alph fallback: a RESEARCHER appended as the 4th Inner Chamber
+-- object (gold has 3 flavor NPCs) offering the ball if never gotten.
+local ruins = data.gen2Maps and data.gen2Maps.RUINS_OF_ALPH_INNER_CHAMBER
+T.check(type(ruins) == "table" and type(ruins.objects) == "table",
+  "RUINS_OF_ALPH_INNER_CHAMBER survives the load")
+T.eq(#ruins.objects, 4, "researcher appended as the 4th Inner Chamber object")
+local researcher = ruins.objects[4]
+T.check(type(researcher) == "table", "researcher object present")
+T.eq(researcher.index, 4, "object index 4 (matches the fallback script)")
+T.eq(researcher.sprite, "SPRITE_SCIENTIST", "researcher sprite")
+T.eq(researcher.eventFlag, 65535, "always visible (in-script gates)")
+T.eq(researcher.scriptKey, celebi.scriptKeys.fallback, "object runs the fallback script")
+T.eq(researcher.x, 17, "researcher at Inner Chamber x 17")
+T.eq(researcher.y, 23, "researcher at Inner Chamber y 23")
+local fallbackRows = scripts[celebi.scriptKeys.fallback]
+T.check(type(fallbackRows) == "table", "fallback script registered")
+local fallbackGives, fallbackSetsGot
+for _, step in ipairs(fallbackRows) do
+  if step.op == "verbosegiveitem" then fallbackGives = step.item end
+  if step.op == "setevent" and step.event == 1948 then fallbackSetsGot = true end
+end
+T.eq(fallbackGives, 251, "fallback offers the GS BALL")
+T.check(fallbackSetsGot, "fallback sets EVENT_GOT_GS_BALL_FROM_POKECOM_CENTER")
+
+-- Texts: all CL dialogue rows land in data.gen2Text under the mod prefix.
+for key, text in pairs(celebi.texts or {}) do
+  T.eq(data.gen2Text["crystal_legacy_changes:celebi_" .. key], text,
+    "celebi text row registered: " .. key)
+end
 
 -- ---- Phase 3a: fossils + Ruins of Alph --------------------------------
 local fossilsData = dofile("mods/crystal_legacy_changes/data/fossils.lua")

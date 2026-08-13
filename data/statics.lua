@@ -262,4 +262,130 @@ statics.birds = {
   },
 }
 
+-- ---------------------------------------------------------------------------
+-- Celebi / GS Ball — full Crystal chain (CL), ported to gold.
+--
+-- CL's chain: the Goldenrod Pokecenter link receptionist gives the GS BALL
+-- (coord_events at the doorway, badge gate commented out in CL), the player
+-- hands it to Kurt (7-badge gate), Kurt examines it and leaves town (the
+-- Azalea Town scene returns the ball and sets the forest restless), and the
+-- Ilex Forest shrine consumes the ball for a one-shot L30 Celebi wild battle.
+-- The Ruins of Alph Inner Chamber offers the GS BALL as a fallback if the
+-- Pokecenter scene was missed.
+--
+-- Gold has NONE of it: no GS_BALL item, no shrine event (the Ilex Forest
+-- (8,22) shrine bg_event is a plain text row), a vanilla apricorn-only Kurt
+-- script, and a flavor-only Inner Chamber.  This section wires the whole
+-- chain mod-side:
+--   * GS_BALL item def at index 251 (free — gold's max is 250).  The bag /
+--     checkitem / takeitem / verbosegiveitem ops resolve items by this index
+--     (World itemByIndex), so no engine work; the PACK ICON is Phase 4.
+--   * A LINK_RECEPTIONIST object appended to GOLDENROD_POKECENTER_1F (gold
+--     has no receptionist there; the sprite exists) with the gift script
+--     (always-visible, gates on the got flag).
+--   * Kurt's script ("55:45e3") splice: two checkevent/iftrue rows right
+--     after opentext that branch to the mod's give/gave scripts.  give =
+--     CL verbatim (7-badge gate, yesorno, take the ball); gave returns the
+--     ball immediately and sets FOREST_IS_RESTLESS.  DELIBERATE
+--     SIMPLIFICATION vs CL: Kurt hands the ball back in his house instead of
+--     the Azalea Town return scene (gold's Kurt-outside object is the
+--     vanilla apricorn quest; no clean scene port) — the functional chain is
+--     identical and the shrine checkitem still sees the ball.
+--   * The Ilex shrine bg_event repointed to the shrine script (quiet gold
+--     text until restless; checkitem GS_BALL -> yesorno -> takeitem -> L30
+--     Celebi wild battle).  NO SPRITE_CELEBI needed — Celebi is a wild
+--     battle, not an overworld object.
+--   * A RESEARCHER object appended to RUINS_OF_ALPH_INNER_CHAMBER offering
+--     the GS BALL if the player never got one (gold has no Ho-Oh-puzzle
+--     events, so CL's EVENT_SOLVED_HO_OH_PUZZLE gate has no gold equivalent
+--     — the offer is open once the chamber is reachable).
+-- Flags (all free in gold's space — gold max used 1944; Mew 1940/41, birds
+-- 1942-44):
+--   1945 EVENT_FOREST_IS_RESTLESS  (set by Kurt's gave branch, cleared by
+--                                  the shrine battle)
+--   1946 EVENT_CAN_GIVE_GS_BALL_TO_KURT (set by gift/fallback, cleared by
+--                                  the gave branch)
+--   1947 EVENT_GAVE_GS_BALL_TO_KURT (set by the give branch, cleared by the
+--                                  gave branch)
+--   1948 EVENT_GOT_GS_BALL_FROM_POKECOM_CENTER (set by gift/fallback; guards
+--                                  the fallback offer)
+-- Celebi species id is 251 (dex order, gold pokemon.lua); level 30 per CL's
+-- loadwildmon CELEBI, 30.  Verified 2026-08-13 against the gold cache
+-- (items.lua max index 250 + MYSTERY_EGG row shape; maps.lua
+-- GOLDENROD_POKECENTER_1F objects / ILEX_FOREST bgEvent (8,22) /
+-- RUINS_OF_ALPH_INNER_CHAMBER; scripts.lua "55:45e3" Kurt, "45:6989" shrine
+-- text, "45:6e11" quiet shrine text) and CL (maps/GoldenrodPokecenter1F.asm,
+-- maps/KurtsHouse.asm, maps/IlexForest.asm, maps/RuinsOfAlphInnerChamber.asm).
+-- ---------------------------------------------------------------------------
+statics.celebi = {
+  item = {                -- GS_BALL: gold has no GS Ball; MYSTERY_EGG shape.
+    battleMenu = "ITEMMENU_NOUSE",
+    canSelect = false,
+    canToss = false,
+    description = "A mysterious BALL.<NEXT>It seems to be<NEXT>connected to the<NEXT>forest.",
+    fieldMenu = "ITEMMENU_NOUSE",
+    heldEffect = "HELD_NONE",
+    heldParameter = 0,
+    id = "GS_BALL",
+    index = 251,          -- free in gold's space (max 250); pack icon = Phase 4
+    name = "GS BALL",
+    pocket = "KEY_ITEM",
+    pocketId = 2,
+    price = 0,
+    propertyRaw = 192,
+    source = "crystal_legacy_changes:celebi",
+  },
+  flags = {
+    restless = 1945,      -- EVENT_FOREST_IS_RESTLESS
+    canGive = 1946,       -- EVENT_CAN_GIVE_GS_BALL_TO_KURT
+    gave = 1947,          -- EVENT_GAVE_GS_BALL_TO_KURT
+    got = 1948,           -- EVENT_GOT_GS_BALL_FROM_POKECOM_CENTER
+  },
+  badgeGate = 7,          -- CL's VAR_BADGES < 7 gate on the Kurt hand-off
+  speciesIndex = 251,     -- CELEBI (dex order)
+  level = 30,             -- CL's loadwildmon CELEBI, 30
+  pokecenter = {
+    mapId = "GOLDENROD_POKECENTER_1F",
+    objectIndex = 5,      -- gold has 4 objects; the receptionist is #5
+    coords = { x = 2, y = 5 },
+    sprite = "SPRITE_LINK_RECEPTIONIST", -- gold art exists
+  },
+  kurt = {
+    scriptKey = "55:45e3",  -- gold's Kurt (both in-house Kurt objects share it)
+  },
+  shrine = {
+    mapId = "ILEX_FOREST",
+    scriptKey = "45:6989",  -- gold's (8,22) shrine bg_event (CL's exact coords)
+    quietText = "45:6e11",  -- gold's plain shrine text, reused for the quiet state
+    coords = { x = 8, y = 22 },
+  },
+  fallback = {
+    mapId = "RUINS_OF_ALPH_INNER_CHAMBER",
+    objectIndex = 4,      -- gold has 3 flavor NPCs; the researcher is #4
+    coords = { x = 17, y = 23 },
+    sprite = "SPRITE_SCIENTIST", -- gold art exists
+  },
+  scriptKeys = {
+    gift = "crystal_legacy_changes:celebi_gift",
+    giftDone = "crystal_legacy_changes:celebi_gift_done",
+    kurtGive = "crystal_legacy_changes:celebi_kurt_give",
+    kurtGiveDecline = "crystal_legacy_changes:celebi_kurt_decline",
+    kurtGave = "crystal_legacy_changes:celebi_kurt_gave",
+    shrine = "crystal_legacy_changes:celebi_shrine",
+    shrineBattle = "crystal_legacy_changes:celebi_shrine_battle",
+    fallback = "crystal_legacy_changes:celebi_fallback",
+    fallbackDone = "crystal_legacy_changes:celebi_fallback_done",
+  },
+  texts = {               -- CL dialogue, verbatim in spirit
+    gift = "Congratulations! As a special deal, a GS BALL has been sent just for you! Please accept it!",
+    kurtWhat = "Wh-what is that? I've never seen one before. It looks a lot like a #BALL, but it seems to be something else. Let me check it for you.",
+    kurtNo = "This one could take a long time. Are you sure you don't want to show it to me?",
+    kurtChecking = "I'm checking it now.",
+    kurtShake = "…This BALL started to shake while I was checking it! The forest must be restless! Take it to the ILEX FOREST SHRINE!",
+    shrinePrompt = "ILEX FOREST SHRINE… It's in honor of the forest's protector… …Want to put the GS BALL in?",
+    shrineInsert = "<PLAYER> put in the GS BALL.",
+    fallback = "There is a strange presence here… Perhaps this BALL belongs to ILEX FOREST. Take it!",
+  },
+}
+
 return statics

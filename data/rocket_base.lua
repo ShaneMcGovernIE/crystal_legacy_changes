@@ -18,12 +18,11 @@
 --      eventFlag 1934 (free: gold caps at 1931, rocket_tower uses 1932/1933)
 --   11 B3F executive at (8,3): SPRITE_ROCKET -> SPRITE_ARCHER (real art ships
 --      via rocket_tower's global registration)
---
--- Known Phase 4 art gaps, documented in README/CHANGELOG (never faked):
---   10 B2F six SPRITE_VOLTORB "electrodes" -> SPRITE_ELECTRODE (gold ships no
---      electrode overworld art; CL's sprite is 32x96 but gold's VOLTORB art is
---      what the engine will show until art lands)
---   12 B3F Murkrow at (7,2) (gold reuses SPRITE_MOLTRES; no MURKROW art ships)
+--   10 B2F six SPRITE_VOLTORB "electrodes" -> SPRITE_ELECTRODE (Phase 4b:
+--      art ships from CL gfx/icons/electrode.png, 16x32 POKEMON_SPRITE icon —
+--      CL's own engine renders ELECTRODE as a mon icon, LoadOverworldMonIcon)
+--   12 B3F Murkrow at (7,2): SPRITE_MOLTRES -> SPRITE_MURKROW (Phase 4b: art
+--      ships from CL gfx/icons/murkrow.png, 16x32 POKEMON_SPRITE icon)
 --
 -- No scripts/coordEvents/bgEvents are patched: gold's B3F boss script already
 -- runs class 51 member 4 (EXECUTIVEM_4), which data/trainers.lua re-teams to
@@ -46,9 +45,22 @@ M.objectMoves = {
   { map = "TEAM_ROCKET_BASE_B3F", sprite = "SPRITE_SCIENTIST", x = 14, y = 15, toX = 11, toY = 15 },
 }
 
--- Sprite swaps: match by map + sprite + x + y (executive at (8,3)).
+-- Sprite swaps: match by map + sprite + x + y.
+--   B3F executive at (8,3) -> SPRITE_ARCHER
+--   B2F six SPRITE_VOLTORB electrodes at (7,5),(7,7),(7,9),(22,5),(22,7),(22,9)
+--       -> SPRITE_ELECTRODE (CL RocketBaseB2F.asm; palette field on the gold
+--       objects is 0 = red slot, matching CL's PAL 0)
+--   B3F (7,2) SPRITE_MOLTRES -> SPRITE_MURKROW (CL RocketBaseB3F.asm; gold
+--       object already carries palette 9 = PAL_NPC_BLUE, CL's murkrow slot)
 M.spriteSwaps = {
   { map = "TEAM_ROCKET_BASE_B3F", sprite = "SPRITE_ROCKET", x = 8, y = 3, to = "SPRITE_ARCHER" },
+  { map = "TEAM_ROCKET_BASE_B2F", sprite = "SPRITE_VOLTORB", x = 7, y = 5, to = "SPRITE_ELECTRODE" },
+  { map = "TEAM_ROCKET_BASE_B2F", sprite = "SPRITE_VOLTORB", x = 7, y = 7, to = "SPRITE_ELECTRODE" },
+  { map = "TEAM_ROCKET_BASE_B2F", sprite = "SPRITE_VOLTORB", x = 7, y = 9, to = "SPRITE_ELECTRODE" },
+  { map = "TEAM_ROCKET_BASE_B2F", sprite = "SPRITE_VOLTORB", x = 22, y = 5, to = "SPRITE_ELECTRODE" },
+  { map = "TEAM_ROCKET_BASE_B2F", sprite = "SPRITE_VOLTORB", x = 22, y = 7, to = "SPRITE_ELECTRODE" },
+  { map = "TEAM_ROCKET_BASE_B2F", sprite = "SPRITE_VOLTORB", x = 22, y = 9, to = "SPRITE_ELECTRODE" },
+  { map = "TEAM_ROCKET_BASE_B3F", sprite = "SPRITE_MOLTRES", x = 7, y = 2, to = "SPRITE_MURKROW" },
 }
 
 -- Appended objects (CL objects gold does not ship).  UltraBall at (14,10);

@@ -246,6 +246,7 @@ end
 local function applyStatics(mod, data, counts)
   counts.statics = 0
   local birds = data.birds
+  local mew = data.mew
 
   -- Dragon's Den Dratini Master (Phase 3b).  Gold's B1F shrine is a plain
   -- read bgEvent whose script row is a single jumptext; we replace that row
@@ -316,6 +317,12 @@ local function applyStatics(mod, data, counts)
     end
   end
 
+  -- Route 24 Mew battle text (CL maps/Route24.asm MewBattleText: "Myuu...").
+  if type(mew) == "table" and type(mew.textKey) == "string"
+    and type(mew.battleText) == "string" then
+    mod.content.text:register(mew.textKey, mew.battleText)
+  end
+
   -- Celebi / GS Ball dialogue (CL, in spirit): the receptionist gift, Kurt's
   -- hand-off, the shrine prompt + insertion, and the Ruins of Alph fallback.
   local celebi = data.celebi
@@ -346,7 +353,6 @@ local function applyStatics(mod, data, counts)
     -- is already the CL formula, caught > 248 with Mew+Celebi excluded).
     -- After special 106, clear the Mew object flag unless the Route 24 Mew
     -- was already caught; the iftrue lands on a mod-owned script key.
-    local mew = data.mew
     if type(mew) == "table" and type(mew.completedKey) == "string"
       and type(mew.flags) == "table" and type(mew.text) == "table" then
       scripts[mew.skipKey] = {
@@ -376,6 +382,36 @@ local function applyStatics(mod, data, counts)
       counts.statics = counts.statics + 1
     end
 
+    -- Route 24 Mew battle (Phase 4b).  CL maps/Route24.asm MewScript, verbatim
+    -- flow: opentext "Myuu..." / cry / loadwildmon MEW, 60 / startbattle /
+    -- disappear / set EVENT_ROUTE_24_MEW (keeps the object hidden) / set
+    -- EVENT_ROUTE_24_MEW_CAUGHT (stops the diploma re-release) /
+    -- reloadmapafterbattle.  The object spawns once its overworld art
+    -- (SPRITE_MEW, registered in data/sprites.lua) is in place.
+    if type(mew) == "table" and type(mew.scriptKey) == "string"
+      and type(mew.flags) == "table" and type(mew.objectIndex) == "number"
+      and type(mew.object) == "table" then
+      scripts[mew.scriptKey] = {
+        { op = "opentext" },
+        { op = "writetext", text = mew.textKey },
+        { op = "cry", species = mew.speciesIndex },
+        { op = "waitbutton" },
+        { op = "closetext" },
+        { op = "loadwildmon", species = mew.speciesIndex, level = mew.level },
+        { op = "startbattle" },
+        { op = "disappear", object = mew.objectIndex },
+        { op = "setevent", event = mew.flags.mew },
+        { op = "setevent", event = mew.flags.caught },
+        { op = "reloadmapafterbattle" },
+        { op = "end" },
+      }
+      local map = target.gen2Maps and target.gen2Maps[mew.object.mapId]
+      if type(map) == "table" and type(map.objects) == "table" then
+        table.insert(map.objects, mew.object)
+      end
+      counts.statics = counts.statics + 1
+    end
+
     -- Kanto legendary birds (Phase 3c).  CL releases each bird as a one-time
     -- L60 wild encounter after its quest moment (Blaine -> Moltres, Blue ->
     -- Articuno, Machine Part returned -> Zapdos); gold has none of it.  CL's
@@ -384,11 +420,12 @@ local function applyStatics(mod, data, counts)
     -- gen2InitialEvents, (b) splice the clearevent into the release script at
     -- the anchor row, (c) register the catch script (opentext / "Gyaoo!" /
     -- cry / loadwildmon 60 / startbattle / disappear / setevent /
-    -- reloadmapafterbattle) and (d) spawn the Moltres object (gold ships
-    -- SPRITE_MOLTRES; Articuno and Zapdos are wired but their objects wait
-    -- for Phase 4 overworld art — the object rows are in data.birds).  The
-    -- engine's disappear op re-sets the object's eventFlag, so a caught bird
-    -- stays gone on later map loads.
+    -- reloadmapafterbattle) and (d) spawn each bird's object — Moltres reuses
+    -- gold's SPRITE_MOLTRES; Articuno and Zapdos got their overworld art in
+    -- Phase 4b (data/sprites.lua: SPRITE_ARTICUNO / SPRITE_ZAPDOS 16x96
+    -- walking sheets), so all three objects spawn here.  The engine's
+    -- disappear op re-sets the object's eventFlag, so a caught bird stays
+    -- gone on later map loads.
     if type(birds) == "table" then
       local initial = target.gen2InitialEvents
       if type(initial) == "table" and type(initial.flags) == "table" then
@@ -1124,6 +1161,36 @@ local function applyRocketBase(mod, data, counts)
   mod.exports.rocketBase = { data = data }
 end
 
+-- Phase 4b: overworld sprite art (data/sprites.lua).  Six CL-derived sprites
+-- registered globally via mod.content.sprites:register (merges into
+-- target.gen2Sprites, resolved by Npc.lua via gen2Sprites[objDef.sprite]):
+-- Articuno + Zapdos are 16x96 WALKING_SPRITE sheets (CL's OverworldSprites
+-- entries), Mew/Celebi/Electrode/Murkrow are 16x32 POKEMON_SPRITE icons (how
+-- CL's engine renders pokemon-range sprites, LoadOverworldMonIcon).  Each
+-- sprite's palette mirrors CL (sprites.asm / map object PAL fields); the
+-- runtime bake maps the 4 gray shades onto the OBP slot, reproducing the GBC
+-- look.  The assets were converted from CL source by tools/convert_ow_sprites
+-- .py — no synthesized art.
+local function applySprites(mod, data, counts)
+  for _, sprite in ipairs(data.sprites or {}) do
+    if type(sprite) == "table" and type(sprite.id) == "string"
+      and type(sprite.image) == "string" then
+      mod.content.sprites:register(sprite.id, {
+        image = sprite.image,
+        frames = sprite.frames or 1,
+        walker = sprite.walker == true,
+        palette = sprite.palette,
+        paletteId = sprite.paletteId,
+        spriteType = sprite.spriteType or "POKEMON_SPRITE",
+        species = sprite.species,
+        icon = sprite.icon,
+        source = sprite.source,
+      })
+      counts.sprites = counts.sprites + 1
+    end
+  end
+end
+
 -- Phase 3d: Goldenrod City Move Tutor (CL maps/GoldenrodCity.asm:52-165).
 -- CL's tutor is a MAPCALLBACK_OBJECTS NPC who appears after 7 Badges with a
 -- Coin Case and hides once taught today; gold has none, so the mod appends an
@@ -1292,6 +1359,8 @@ return function(mod)
   applyMarts(mod, loadSibling(mod, "data/marts.lua"), counts)
   applyEvolutions(mod, loadSibling(mod, "data/evolutions.lua"), counts)
   counts.statics = 0
+  counts.sprites = 0
+  applySprites(mod, loadSibling(mod, "data/sprites.lua"), counts)
   applyStatics(mod, loadSibling(mod, "data/statics.lua"), counts)
   applyFossils(mod, loadSibling(mod, "data/fossils.lua"), counts)
   applyBerryShop(mod, loadSibling(mod, "data/berry_shop.lua"), counts,

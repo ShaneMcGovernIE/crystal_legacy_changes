@@ -461,6 +461,26 @@ local function seedGoldMewChain()
     { op = "setevent", event = 214 },
     { op = "end" },
   }
+  -- Gold ROUTE_24 with its 6 vanilla objects, so the Mew object must land as
+  -- #7 (index 7) when the mod appends it.
+  data.gen2Maps = data.gen2Maps or {}
+  data.gen2Maps.ROUTE_24 = {
+    id = "ROUTE_24",
+    objects = {},
+  }
+  for i, def in ipairs({
+    { sprite = "SPRITE_COOLTRAINER_M", x = 15, y = 23 },
+    { sprite = "SPRITE_SUPER_NERD", x = 23, y = 15 },
+    { sprite = "SPRITE_SLOWPOKE", x = 20, y = 24 },
+    { sprite = "SPRITE_COOLTRAINER_F", x = 21, y = 24 },
+    { sprite = "SPRITE_FISHER", x = 30, y = 26 },
+    { sprite = "SPRITE_YOUNGSTER", x = 6, y = 12 },
+  }) do
+    data.gen2Maps.ROUTE_24.objects[i] = {
+      eventFlag = 65535, index = i, sprite = def.sprite,
+      script = 0, scriptKey = "45:4db9", x = def.x, y = def.y,
+    }
+  end
 end
 seedGoldMewChain()
 
@@ -580,6 +600,41 @@ local function seedGoldBirds()
     data.gen2Maps.VICTORY_ROAD.objects[i] = {
       eventFlag = 65535, index = i, sprite = "SPRITE_TEAL",
       script = 0, scriptKey = "54:4d4d", x = i, y = i,
+    }
+  end
+  -- Gold ROUTE_20 with its 3 vanilla objects, so the Articuno object must
+  -- land as #4 (index 4).
+  data.gen2Maps.ROUTE_20 = {
+    id = "ROUTE_20",
+    objects = {},
+  }
+  for i, def in ipairs({
+    { sprite = "SPRITE_SWIMMER_F", x = 9, y = 6 },
+    { sprite = "SPRITE_SWIMMER_F", x = 25, y = 20 },
+    { sprite = "SPRITE_SWIMMER_M", x = 28, y = 29 },
+  }) do
+    data.gen2Maps.ROUTE_20.objects[i] = {
+      eventFlag = 65535, index = i, sprite = def.sprite,
+      script = 0, scriptKey = "54:4d4d", x = def.x, y = def.y,
+    }
+  end
+  -- Gold ROUTE_10_NORTH with its 6 vanilla objects, so the Zapdos object must
+  -- land as #7 (index 7).
+  data.gen2Maps.ROUTE_10_NORTH = {
+    id = "ROUTE_10_NORTH",
+    objects = {},
+  }
+  for i, def in ipairs({
+    { sprite = "SPRITE_RECEPTIONIST", x = 9, y = 14 },
+    { sprite = "SPRITE_LASS", x = 6, y = 22 },
+    { sprite = "SPRITE_YOUNGSTER", x = 17, y = 23 },
+    { sprite = "SPRITE_LASS", x = 24, y = 17 },
+    { sprite = "SPRITE_YOUNGSTER", x = 30, y = 25 },
+    { sprite = "SPRITE_COOLTRAINER_F", x = 13, y = 9 },
+  }) do
+    data.gen2Maps.ROUTE_10_NORTH.objects[i] = {
+      eventFlag = 65535, index = i, sprite = def.sprite,
+      script = 0, scriptKey = "54:4d4d", x = def.x, y = def.y,
     }
   end
 end
@@ -720,8 +775,28 @@ local function seedGoldRocketBase()
   data.gen2Maps.TEAM_ROCKET_BASE_B2F = {
     id = "TEAM_ROCKET_BASE_B2F",
     objects = {
+      -- Six SPRITE_VOLTORB "electrodes" (gold indices 5-10; the Phase 4b swap
+      -- retargets them to SPRITE_ELECTRODE with real CL art).
+      { eventFlag = 1760, index = 5, sprite = "SPRITE_VOLTORB",
+        spriteId = 155, movement = 22, palette = 0, type = 0,
+        script = 0, scriptKey = "45:4db9", x = 7, y = 5 },
+      { eventFlag = 1760, index = 6, sprite = "SPRITE_VOLTORB",
+        spriteId = 155, movement = 22, palette = 0, type = 0,
+        script = 0, scriptKey = "45:4de4", x = 7, y = 7 },
+      { eventFlag = 1760, index = 7, sprite = "SPRITE_VOLTORB",
+        spriteId = 155, movement = 22, palette = 0, type = 0,
+        script = 0, scriptKey = "45:4e0f", x = 7, y = 9 },
+      { eventFlag = 1760, index = 8, sprite = "SPRITE_VOLTORB",
+        spriteId = 155, movement = 22, palette = 0, type = 0,
+        script = 0, scriptKey = "00:2812", x = 22, y = 5 },
+      { eventFlag = 1760, index = 9, sprite = "SPRITE_VOLTORB",
+        spriteId = 155, movement = 22, palette = 0, type = 0,
+        script = 0, scriptKey = "00:2812", x = 22, y = 7 },
+      { eventFlag = 1760, index = 10, sprite = "SPRITE_VOLTORB",
+        spriteId = 155, movement = 22, palette = 0, type = 0,
+        script = 0, scriptKey = "00:2812", x = 22, y = 9 },
       {
-        eventFlag = 1754, hours = { -1, -1 }, index = 10, movement = 9,
+        eventFlag = 1754, hours = { -1, -1 }, index = 11, movement = 9,
         palette = 0, radius = { x = 0, y = 0 }, script = 23932,
         scriptKey = "45:4d9d", sight = 3, sprite = "SPRITE_ROCKET",
         spriteId = 53, type = 2, x = 2, y = 1,
@@ -736,6 +811,15 @@ local function seedGoldRocketBase()
         palette = 0, radius = { x = 0, y = 0 }, script = 10258,
         scriptKey = "00:2812", sight = 0, sprite = "SPRITE_ROCKET",
         spriteId = 53, type = 0, x = 8, y = 3,
+      },
+      -- Murkrow stand-in: gold reuses SPRITE_MOLTRES (the Phase 4b swap
+      -- retargets it to SPRITE_MURKROW with real CL art).  Palette 9 =
+      -- PAL_NPC_BLUE, CL's murkrow slot.
+      {
+        eventFlag = 1754, hours = { -1, -1 }, index = 3, movement = 22,
+        palette = 9, radius = { x = 0, y = 0 }, script = 23881,
+        scriptKey = "45:5d49", sight = 0, sprite = "SPRITE_MOLTRES",
+        spriteId = 158, type = 0, x = 7, y = 2,
       },
       {
         eventFlag = 1754, hours = { -1, -1 }, index = 5, movement = 9,
@@ -1301,8 +1385,8 @@ T.eq(fires({ species = "TYROGUE", level = 20, stats = { attack = 20, defense = 3
 local staticsData = dofile("mods/crystal_legacy_changes/data/statics.lua")
 local gc = staticsData.gameCorner
 T.check(type(gc) == "table", "statics data file carries the gameCorner section")
-T.eq(export.rebalance.statics, 23,
-  "exports report 3 game-corner prize arms + master command + shrine row + mew release + 3 bird catch scripts + 3 bird release splices + Moltres object + 10 celebi chain steps")
+T.eq(export.rebalance.statics, 26,
+  "exports report 3 game-corner prize arms + master command + shrine row + mew release + mew battle + 3 bird catch scripts + 3 bird release splices + 3 bird objects + 10 celebi chain steps")
 
 local scripts = data.gen2Scripts
 T.check(type(scripts) == "table", "gen2Scripts survives the load")
@@ -1441,12 +1525,13 @@ T.check(snorlax.text.sleeping:match("^SNORLAX is snoring"),
 T.check(snorlax.text.wake:match("^The POKéGEAR was placed")
   and snorlax.text.wake:match("SNORLAX woke up!$"),
   "wake text matches CL wording")
-T.eq(export.rebalance.statics, 23,
-  "pin adds no patched arm (statics count reflects master + mew + birds + celebi chain)")
+T.eq(export.rebalance.statics, 26,
+  "pin adds no patched arm (statics count reflects master + mew + mew battle + birds + bird objects + celebi chain)")
 
 -- ---- Phase 3b: Route 24 Mew dex-chain release --------------------------
 -- CL splices a Mew release into gold's EXISTING dex-completion branch; the
--- visible Route 24 object is Phase 4 (no SPRITE_MEW overworld art in gold).
+-- visible Route 24 object ships in Phase 4b (SPRITE_MEW overworld art from
+-- data/sprites.lua, CL gfx/icons/mew.png).
 local mew = staticsData.mew
 T.check(type(mew) == "table", "statics data file carries the mew section")
 T.eq(mew.speciesIndex, 151, "Mew species 151")
@@ -1497,12 +1582,53 @@ T.eq(skip[1].op, "writetext", "skip starts at the after-diploma text")
 T.eq(skip[1].text, mew.text.after_diploma, "same gold text row")
 T.eq(skip[#skip].op, "end", "skip ends cleanly")
 
+-- Phase 4b: the Mew object spawns on Route 24 (index 7) with CL's MewScript.
+do
+  T.eq(data.gen2Maps.ROUTE_24 and #data.gen2Maps.ROUTE_24.objects, 7,
+    "Mew appended as the 7th Route 24 object")
+  local mewObject = data.gen2Maps.ROUTE_24 and data.gen2Maps.ROUTE_24.objects[7]
+  T.check(type(mewObject) == "table", "Mew object present")
+  T.eq(mewObject.index, 7, "object index 7 (matches the disappear arg)")
+  T.eq(mewObject.sprite, "SPRITE_MEW", "SPRITE_MEW overworld art")
+  T.eq(mewObject.eventFlag, 1940, "object hidden while EVENT_ROUTE_24_MEW is SET")
+  T.eq(mewObject.scriptKey, mew.scriptKey, "object runs the MewScript battle script")
+  T.eq(mewObject.palette, 4, "PAL_NPC_PINK slot (CL Route24 object)")
+  T.eq(mewObject.x, 8, "object at Route 24 x 8")
+  T.eq(mewObject.y, 12, "object at Route 24 y 12")
+  T.eq(mewObject.movement, 0x16, "SPRITEMOVEDATA_POKEMON (CL)")
+  local mewScript = scripts[mew.scriptKey]
+  T.check(type(mewScript) == "table", "Mew battle script registered")
+  local mewOps = {}
+  for _, step in ipairs(mewScript or {}) do
+    mewOps[#mewOps + 1] = step.op
+  end
+  T.eq(mewOps[1], "opentext", "MewScript opens with text (CL maps/Route24.asm)")
+  T.eq(mewOps[2], "writetext", "writes the battle text")
+  T.eq(mewScript[2].text, mew.textKey, "text key matches the registered row")
+  T.eq(mewOps[3], "cry", "cry plays")
+  T.eq(mewScript[3].species, 151, "cry for Mew")
+  T.eq(mewOps[6], "loadwildmon", "loadwildmon row present")
+  T.eq(mewScript[6].species, 151, "loadwildmon Mew")
+  T.eq(mewScript[6].level, 60, "loadwildmon L60")
+  T.eq(mewOps[8], "disappear", "Mew disappears after the battle")
+  T.eq(mewScript[8].object, 7, "disappears the Route 24 object")
+  T.eq(mewScript[9].op, "setevent", "re-sets EVENT_ROUTE_24_MEW (stays hidden)")
+  T.eq(mewScript[9].event, 1940, "setevent MEW flag")
+  T.eq(mewScript[10].op, "setevent", "sets the caught flag (no re-release)")
+  T.eq(mewScript[10].event, 1941, "setevent MEW_CAUGHT flag")
+  T.eq(mewOps[#mewOps], "end", "MewScript ends cleanly")
+  T.eq(run.loader.content.text:get(mew.textKey), "Myuu...",
+    "battle text registered verbatim (CL MewBattleText)")
+end
+
 -- ---- Phase 3c: Kanto legendary birds ------------------------------------
 -- CL releases each bird as a one-time L60 wild encounter after its quest
 -- moment; gold has none of it.  CL's event is one EVENT_CAUGHT_<BIRD> flag
 -- per bird, seeded SET at NewGame (bird hidden), cleared by the release
--- splice (bird appears), set again by the catch script (bird gone).  The
--- visible objects are Phase 4 except Moltres (gold ships SPRITE_MOLTRES).
+-- splice (bird appears), set again by the catch script (bird gone).  All
+-- three visible objects spawn: Moltres reuses gold's SPRITE_MOLTRES, and
+-- Phase 4b added SPRITE_ARTICUNO/SPRITE_ZAPDOS overworld art (data/sprites
+-- .lua, converted from CL gfx/sprites/).
 local birds = staticsData.birds
 T.check(type(birds) == "table", "statics data file carries the birds section")
 T.eq(#birds, 3, "three birds wired (Moltres, Articuno, Zapdos)")
@@ -1580,7 +1706,7 @@ T.eq(zapdosRows[7].op, "loadwildmon", "Zapdos: loadwildmon (faceplayer shifts ro
 T.eq(zapdosRows[7].species, 145, "Zapdos: species 145")
 T.eq(zapdosRows[7].level, 60, "Zapdos: L60")
 T.eq(zapdosRows[9].op, "disappear", "Zapdos: disappears after the fight")
-T.eq(zapdosRows[9].object, 1, "Zapdos: hides the Route 10 North object (index 1)")
+T.eq(zapdosRows[9].object, 7, "Zapdos: hides the Route 10 North object (index 7)")
 T.eq(zapdosRows[10].event, 1944, "Zapdos: EVENT_CAUGHT_ZAPDOS")
 
 -- Release seams: the clearevent lands right after each quest's anchor row.
@@ -1647,13 +1773,86 @@ T.eq(moltresObject.scriptKey, moltres.scriptKey, "object runs the catch script")
 T.eq(moltresObject.x, 18, "object at Victory Road x 18")
 T.eq(moltresObject.y, 32, "object at Victory Road y 32")
 T.eq(moltresObject.movement, 0x16, "SPRITEMOVEDATA_POKEMON (CL)")
--- Phase 4: Articuno/Zapdos are wired but their objects need new overworld
--- art (gold lacks SPRITE_ARTICUNO/ZAPDOS); the data section carries their
--- target map/coords/index for when the art lands.
-T.check(type(articuno.object) ~= "table", "Articuno object deferred (Phase 4)")
-T.check(type(zapdos.object) ~= "table", "Zapdos object deferred (Phase 4)")
-T.eq(articuno.objectIndex, 4, "Articuno will be the 4th Route 20 object")
-T.eq(zapdos.objectIndex, 1, "Zapdos will be the 1st Route 10 North object")
+-- Phase 4b: Articuno and Zapdos objects spawn too (art now ships via
+-- data/sprites.lua registrations; CL palettes: articuno PAL_NPC_BLUE (id 1),
+-- zapdos PAL_NPC_BROWN (id 3)).
+do
+  local route20 = data.gen2Maps.ROUTE_20
+  T.check(type(route20) == "table" and type(route20.objects) == "table",
+    "ROUTE_20 survives the load")
+  T.eq(#route20.objects, 4, "Articuno appended as the 4th Route 20 object")
+  local articunoObject = route20.objects[4]
+  T.check(type(articunoObject) == "table", "Articuno object present")
+  T.eq(articunoObject.index, 4, "object index 4 (matches the disappear arg)")
+  T.eq(articunoObject.sprite, "SPRITE_ARTICUNO", "SPRITE_ARTICUNO overworld art")
+  T.eq(articunoObject.eventFlag, 1943, "object hidden while EVENT_CAUGHT_ARTICUNO is SET")
+  T.eq(articunoObject.scriptKey, articuno.scriptKey, "object runs the catch script")
+  T.eq(articunoObject.palette, 1, "PAL_NPC_BLUE (CL Route20 object)")
+  T.eq(articunoObject.x, 31, "object at Route 20 x 31")
+  T.eq(articunoObject.y, 11, "object at Route 20 y 11")
+  T.eq(articunoObject.movement, 0x16, "SPRITEMOVEDATA_POKEMON (CL)")
+  local route10N = data.gen2Maps.ROUTE_10_NORTH
+  T.check(type(route10N) == "table" and type(route10N.objects) == "table",
+    "ROUTE_10_NORTH survives the load")
+  T.eq(#route10N.objects, 7, "Zapdos appended as the 7th Route 10 North object")
+  local zapdosObject = route10N.objects[7]
+  T.check(type(zapdosObject) == "table", "Zapdos object present")
+  T.eq(zapdosObject.index, 7, "object index 7 (matches the disappear arg)")
+  T.eq(zapdosObject.sprite, "SPRITE_ZAPDOS", "SPRITE_ZAPDOS overworld art")
+  T.eq(zapdosObject.eventFlag, 1944, "object hidden while EVENT_CAUGHT_ZAPDOS is SET")
+  T.eq(zapdosObject.scriptKey, zapdos.scriptKey, "object runs the catch script")
+  T.eq(zapdosObject.palette, 3, "PAL_NPC_BROWN (CL Route10North object)")
+  T.eq(zapdosObject.x, 4, "object at Route 10 North x 4")
+  T.eq(zapdosObject.y, 11, "object at Route 10 North y 11")
+  T.eq(zapdosObject.movement, 0x16, "SPRITEMOVEDATA_POKEMON (CL)")
+end
+
+-- ---- Phase 4b: overworld sprite registrations -----------------------------
+-- Six CL-derived sprites registered globally into target.gen2Sprites (the
+-- engine resolves objects via gen2Sprites[objDef.sprite]).  Birds are 16x96
+-- walking sheets; the four pokemon-range sprites are 16x32 POKEMON_SPRITE
+-- icons (how CL's own engine renders them, LoadOverworldMonIcon).
+local function spriteDef(id)
+  local def = data.gen2Sprites and data.gen2Sprites[id]
+  T.check(type(def) == "table", id .. " registered in gen2Sprites")
+  return def
+end
+do
+  local articunoDef = spriteDef("SPRITE_ARTICUNO")
+  T.eq(articunoDef.image, "assets/sprites/articuno.png", "Articuno ships the CL sheet")
+  T.eq(articunoDef.frames, 6, "Articuno: 6 frames (16x96 walking sheet)")
+  T.eq(articunoDef.walker, true, "Articuno: walker")
+  T.eq(articunoDef.paletteId, 1, "Articuno: PAL_OW_BLUE (CL sprites.asm)")
+  T.eq(articunoDef.spriteType, "WALKING_SPRITE", "Articuno: walking sprite type")
+  local zapdosDef = spriteDef("SPRITE_ZAPDOS")
+  T.eq(zapdosDef.image, "assets/sprites/zapdos.png", "Zapdos ships the CL sheet")
+  T.eq(zapdosDef.frames, 6, "Zapdos: 6 frames (16x96 walking sheet)")
+  T.eq(zapdosDef.walker, true, "Zapdos: walker")
+  T.eq(zapdosDef.paletteId, 3, "Zapdos: PAL_OW_BROWN (CL sprites.asm)")
+  T.eq(zapdosDef.spriteType, "WALKING_SPRITE", "Zapdos: walking sprite type")
+  local mewDef = spriteDef("SPRITE_MEW")
+  T.eq(mewDef.image, "assets/sprites/mew.png", "Mew ships the CL icon")
+  T.eq(mewDef.frames, 1, "Mew: static icon (POKEMON_SPRITE)")
+  T.eq(mewDef.walker, false, "Mew: not a walker")
+  T.eq(mewDef.paletteId, 4, "Mew: PAL_NPC_PINK slot (CL Route24 object)")
+  T.eq(mewDef.spriteType, "POKEMON_SPRITE", "Mew: pokemon sprite type")
+  T.eq(mewDef.species, "MEW", "Mew: species tagged")
+  local celebiDef = spriteDef("SPRITE_CELEBI")
+  T.eq(celebiDef.image, "assets/sprites/celebi.png", "Celebi ships the CL icon")
+  T.eq(celebiDef.frames, 1, "Celebi: static icon (POKEMON_SPRITE)")
+  T.eq(celebiDef.paletteId, 2, "Celebi: PAL_OW_GREEN slot (menu-icon palette)")
+  T.eq(celebiDef.spriteType, "POKEMON_SPRITE", "Celebi: pokemon sprite type")
+  local electrodeDef = spriteDef("SPRITE_ELECTRODE")
+  T.eq(electrodeDef.image, "assets/sprites/electrode.png", "Electrode ships the CL icon")
+  T.eq(electrodeDef.frames, 1, "Electrode: static icon (POKEMON_SPRITE)")
+  T.eq(electrodeDef.paletteId, 0, "Electrode: PAL 0 (CL RocketBaseB2F)")
+  T.eq(electrodeDef.spriteType, "POKEMON_SPRITE", "Electrode: pokemon sprite type")
+  local murkrowDef = spriteDef("SPRITE_MURKROW")
+  T.eq(murkrowDef.image, "assets/sprites/murkrow.png", "Murkrow ships the CL icon")
+  T.eq(murkrowDef.frames, 1, "Murkrow: static icon (POKEMON_SPRITE)")
+  T.eq(murkrowDef.paletteId, 1, "Murkrow: PAL_NPC_BLUE (CL RocketBaseB3F)")
+  T.eq(murkrowDef.spriteType, "POKEMON_SPRITE", "Murkrow: pokemon sprite type")
+end
 
 -- ---- Phase 3c: Celebi / GS Ball chain -----------------------------------
 -- Full Crystal chain mod-side (gold ships none of it): GS_BALL item at 251,
@@ -2477,6 +2676,20 @@ T.eq(rbMitch.sight, 3, "Mitch keeps sight 3")
 local rbExec = rbFind(rbB3F, 8, 3)
 T.check(rbExec ~= nil, "exec stays at (8,3)")
 T.eq(rbExec.sprite, "SPRITE_ARCHER", "exec wears ARCHER's sprite")
+-- Phase 4b deltas 10 + 12: the six B2F electrodes and the B3F Murkrow now
+-- wear real CL art (SPRITE_ELECTRODE / SPRITE_MURKROW, data/sprites.lua).
+do
+  for _, coord in ipairs({ { 7, 5 }, { 7, 7 }, { 7, 9 }, { 22, 5 }, { 22, 7 }, { 22, 9 } }) do
+    local obj = rbFind(rbB2F, coord[1], coord[2])
+    T.check(obj ~= nil, string.format("B2F electrode at (%d,%d) present", coord[1], coord[2]))
+    T.eq(obj.sprite, "SPRITE_ELECTRODE",
+      string.format("B2F (%d,%d) wears ELECTRODE's sprite", coord[1], coord[2]))
+  end
+  local rbMurkrow = rbFind(rbB3F, 7, 2)
+  T.check(rbMurkrow ~= nil, "B3F Murkrow at (7,2) present")
+  T.eq(rbMurkrow.sprite, "SPRITE_MURKROW", "Murkrow wears MURKROW's sprite")
+  T.eq(rbMurkrow.palette, 9, "Murkrow keeps PAL_NPC_BLUE (CL's murkrow slot)")
+end
 -- Deltas 6-8: B3F itemball item swaps.
 T.eq(rbFind(rbB3F, 1, 12).itemball.item, 27, "B3F (1,12) is PROTEIN (27)")
 T.eq(rbFind(rbB3F, 3, 12).itemball.item, 53, "B3F (3,12) is X_SPECIAL (53)")
@@ -2487,11 +2700,12 @@ T.check(rbUltra ~= nil, "UltraBall added at (14,10)")
 T.eq(rbUltra.itemball.item, 2, "appended ball holds ULTRA_BALL (2)")
 T.eq(rbUltra.eventFlag, 1934, "UltraBall keyed to free flag 1934")
 -- The UltraBall must not duplicate on re-fire (one-per-session guard).
-T.eq(#rbB3F.objects, 8, "re-fire is idempotent (no duplicate UltraBall)")
+T.eq(#rbB3F.objects, 9, "re-fire is idempotent (no duplicate UltraBall)")
 -- Counts reported.
 T.eq(export.rebalance.rocketBase.items, 4, "4 itemball item repoints")
 T.eq(export.rebalance.rocketBase.objects, 4, "4 NPC moves")
-T.eq(export.rebalance.rocketBase.sprites, 1, "1 sprite swap (exec -> ARCHER)")
+T.eq(export.rebalance.rocketBase.sprites, 8,
+  "8 sprite swaps (exec -> ARCHER, 6x VOLTORB -> ELECTRODE, MOLTRES -> MURKROW)")
 T.eq(export.rebalance.rocketBase.added, 1, "1 appended object (UltraBall)")
 
 -- Phase 4a #5 (item evolutions): the engine's EvoStoneEffect port is

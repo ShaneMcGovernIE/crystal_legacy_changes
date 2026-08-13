@@ -22,6 +22,19 @@
 - Team Rocket RadioTower full port: RadioTower 1F-5F script-table patches
   (boss scene at 5F included), SPRITE_ARCHER/SPRITE_GIOVANNI/
   SPRITE_GIOVANNI_DISGUISE overworld art, and scene wiring.
+- Overworld sprite art (Phase 4b, `data/sprites.lua`): six CL-derived sprites
+  registered globally via `content.sprites:register`, converted from CL source
+  to gold's mode L 4-shade format by `tools/convert_ow_sprites.py` (no art
+  synthesized):
+  - SPRITE_ARTICUNO + SPRITE_ZAPDOS: real 16x96 walking sheets from
+    `gfx/sprites/` (CL OverworldSprites palettes: PAL_OW_BLUE / PAL_OW_BROWN);
+    both birds now spawn as Route 20 / Route 10 North statics.
+  - SPRITE_MEW (Route 24 object + CL MewScript battle: "Myuu...", L60),
+    SPRITE_ELECTRODE (B2F ×6, replacing gold's VOLTORB stand-ins),
+    SPRITE_MURKROW (B3F, replacing gold's SPRITE_MOLTRES stand-in),
+    SPRITE_CELEBI (registered for the shrine cutscene when ported) — all
+    16x32 POKEMON_SPRITE icons from `gfx/icons/`, matching how CL's own
+    engine renders pokemon-range overworld sprites.
 - Goldenrod City Move Tutor: the CL move-tutor dialogue and line-up, wired
   through the game's native tutor scene.
 - Statics/gifts and story releases:
@@ -33,13 +46,14 @@
     Kanto birds CL release wiring.
   - Flower Shop berry shop shipped mod-side, blocked on the Phase 4
     mart-shelf gate.
-- 90 new test assertions covering the Rocket Base patch (suite now 779/779).
+- 90 new test assertions covering the Rocket Base patch (suite now 779/779),
+  plus the Phase 4b sprite/wiring suite (suite now 930/930).
 
 ### Notes
 
-- Rocket Base B2F's six electrodes still render gold's VOLTORB art, and B3F's
-  Murkrow still reuses gold's SPRITE_MOLTRES bird — both are known Phase 4
-  art gaps, never faked.
+- The GS Ball's bag icon and the Berry Shop mart-shelf gate remain Phase 4 art
+  / engine gaps; SPRITE_CELEBI ships but no object uses it yet (Celebi stays
+  a wild battle by design — the shrine cutscene is a future script port).
 
 ## [0.8.0] - 2026-08-13
 

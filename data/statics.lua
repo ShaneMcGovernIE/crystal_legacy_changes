@@ -123,10 +123,12 @@ statics.snorlax = {
 -- clearevent MEW, spliced into the diploma branch via wholesale row rebuild
 -- (fossils pattern) on free gold flags 1940 (EVENT_ROUTE_24_MEW) and 1941
 -- (EVENT_ROUTE_24_MEW_CAUGHT); the iftrue skip target is a mod-owned script
--- key.  BLOCKED at the visible object: gold has no SPRITE_MEW overworld art
--- (no SpriteMons row, no icon — Phase 4 item), so no Route 24 object is added
--- yet; the clearevent fires on a flag with no object, ready for the Phase 4
--- sprite drop.  Verified 2026-08-13 against the gold cache (scripts.lua
+-- key.  Phase 4b: SPRITE_MEW overworld art now ships (data/sprites.lua, from
+-- CL gfx/icons/mew.png), so the Route 24 object below spawns at (8,12) with
+-- CL's MewScript (maps/Route24.asm:31-56: opentext "Myuu..." / cry /
+-- loadwildmon MEW, 60 / startbattle / disappear / set MEW / set MEW_CAUGHT /
+-- reloadmapafterbattle), index 7 = gold ROUTE_24's next slot (6 objects).
+-- Verified 2026-08-13 against the gold cache (scripts.lua
 -- "5e:4c8c"/"5e:4c9a") and CL (maps/CeladonMansion3F.asm:22-38,
 -- maps/Route24.asm:31-56).
 -- ---------------------------------------------------------------------------
@@ -134,6 +136,9 @@ statics.mew = {
   gateKey = "5e:4c8c",      -- designer gate script (readvar/ifgreater — untouched)
   completedKey = "5e:4c9a", -- diploma branch (patched: release spliced in)
   skipKey = "crystal_legacy_changes:mew_release_after", -- iftrue skip target
+  scriptKey = "crystal_legacy_changes:mew", -- battle script (CL MewScript)
+  textKey = "crystal_legacy_changes:mew_battle", -- "Myuu..." (CL MewBattleText)
+  battleText = "Myuu...",
   route = "ROUTE_24",
   coords = { x = 8, y = 12 },
   species = "MEW",
@@ -144,7 +149,24 @@ statics.mew = {
     mew = 1940,   -- EVENT_ROUTE_24_MEW (clearevent = release)
     caught = 1941 -- EVENT_ROUTE_24_MEW_CAUGHT (skips re-release)
   },
-  sprite = "SPRITE_MEW", -- BLOCKED: no overworld art in gold (Phase 4)
+  sprite = "SPRITE_MEW", -- Phase 4b: art ships (CL gfx/icons/mew.png, 16x32 icon)
+  objectIndex = 7,       -- gold ROUTE_24 has 6 objects (indices 1-6)
+  object = {
+    mapId = "ROUTE_24",
+    eventFlag = 1940,
+    index = 7,
+    movement = 0x16,  -- SPRITEMOVEDATA_POKEMON (CL)
+    palette = 4,      -- PAL_NPC_PINK slot (CL Route24 object PAL_NPC_PINK; gold slot id 4)
+    radius = { x = 0, y = 0 },
+    script = 0,
+    scriptKey = "crystal_legacy_changes:mew",
+    sight = 0,
+    sprite = "SPRITE_MEW",
+    spriteId = 0, -- no ROM OverworldSprites slot (mod-registered sprite)
+    type = 0,     -- OBJECTTYPE_SCRIPT (CL)
+    x = 8,
+    y = 12,
+  },
   text = {              -- gold text rows reused verbatim (CL wording identical)
     completed = "5e:4d41",      -- "Wow! Excellent! You completed your #DEX!"
     pause = "5e:4d7c",          -- "…"
@@ -178,11 +200,12 @@ statics.mew = {
 -- scripts.lua: "53:5188" Blaine win path, "5f:4002" Blue, "54:4deb" manager
 -- FoundMachinePart after setevent 1900 RESTORED_POWER).
 --
--- Visible objects are Phase 4 except Moltres: gold ships SPRITE_MOLTRES as a
--- POKEMON_SPRITE (sprites.lua SpriteMons row, PAL_OW_RED), so the Victory
--- Road object is added now (index 7 = 6 vanilla + 1); ARTICUNO (ROUTE_20,
--- would be index 4) and ZAPDOS (ROUTE_10_NORTH, index 1) need overworld art
--- — wired (flag/script/coords) but not spawned.  Verified 2026-08-13 against
+-- All three visible objects spawn: Moltres reuses gold's SPRITE_MOLTRES
+-- (POKEMON_SPRITE, PAL_OW_RED); Phase 4b added the missing art for the other
+-- two (data/sprites.lua: SPRITE_ARTICUNO / SPRITE_ZAPDOS 16x96 walking sheets
+-- converted from CL gfx/sprites/, palettes per CL's OverworldSprites entries),
+-- so ARTICUNO (ROUTE_20, index 4) and ZAPDOS (ROUTE_10_NORTH, index 7 — gold
+-- has 6 vanilla objects) spawn now too.  Verified 2026-08-13 against
 -- the gold cache (maps.lua VICTORY_ROAD/ROUTE_20/ROUTE_10_NORTH objects,
 -- scripts.lua "53:5188"/"5f:4002"/"54:4dbd"+"54:4deb", sprites.lua
 -- SPRITE_MOLTRES, initial_events.lua) and CL (maps/SeafoamGym.asm,
@@ -234,13 +257,29 @@ statics.birds = {
     mapId = "ROUTE_20",
     coords = { x = 31, y = 11 },
     objectIndex = 4,      -- gold ROUTE_20 has 3 objects (1..3)
-    sprite = "SPRITE_ARTICUNO", -- Phase 4: no gold art
+    sprite = "SPRITE_ARTICUNO", -- Phase 4b: art ships (CL gfx/sprites/articuno.png)
     textKey = "crystal_legacy_changes:birds_articuno",
     scriptKey = "crystal_legacy_changes:birds_articuno",
     seams = {             -- Blue (post-battle, pre-badge)
       { scriptKey = "5f:4002", afterOp = "reloadmapafterbattle" },
     },
-    -- object deferred to Phase 4 (needs SPRITE_ARTICUNO art)
+    object = {            -- added to ROUTE_20 now (Phase 4b art)
+      mapId = "ROUTE_20",
+      eventFlag = 1943,
+      hours = { -1, -1 },
+      index = 4,
+      movement = 0x16,    -- SPRITEMOVEDATA_POKEMON (CL); engine stands it
+      palette = 1,        -- PAL_NPC_BLUE (CL Route20 articuno object)
+      radius = { x = 0, y = 0 },
+      script = 0,
+      scriptKey = "crystal_legacy_changes:birds_articuno",
+      sight = 0,
+      sprite = "SPRITE_ARTICUNO",
+      spriteId = 0,       -- no ROM OverworldSprites slot (mod-registered sprite)
+      type = 0,
+      x = 31,
+      y = 11,
+    },
   },
   {
     id = "zapdos",
@@ -251,14 +290,30 @@ statics.birds = {
     text = "Gyaoo!",      -- CL's ZapdosBattleText, verbatim
     mapId = "ROUTE_10_NORTH",
     coords = { x = 4, y = 11 },
-    objectIndex = 1,      -- gold ROUTE_10_NORTH has no objects
-    sprite = "SPRITE_ZAPDOS", -- Phase 4: no gold art
+    objectIndex = 7,      -- gold ROUTE_10_NORTH has 6 objects (1..6)
+    sprite = "SPRITE_ZAPDOS", -- Phase 4b: art ships (CL gfx/sprites/zapdos.png)
     textKey = "crystal_legacy_changes:birds_zapdos",
     scriptKey = "crystal_legacy_changes:birds_zapdos",
     seams = {             -- Power Plant manager, Machine Part returned
       { scriptKey = "54:4deb", afterOp = "setevent", afterEvent = 1900 },
     },
-    -- object deferred to Phase 4 (needs SPRITE_ZAPDOS art)
+    object = {            -- added to ROUTE_10_NORTH now (Phase 4b art)
+      mapId = "ROUTE_10_NORTH",
+      eventFlag = 1944,
+      hours = { -1, -1 },
+      index = 7,
+      movement = 0x16,    -- SPRITEMOVEDATA_POKEMON (CL); engine stands it
+      palette = 3,        -- PAL_NPC_BROWN (CL Route10North zapdos object)
+      radius = { x = 0, y = 0 },
+      script = 0,
+      scriptKey = "crystal_legacy_changes:birds_zapdos",
+      sight = 0,
+      sprite = "SPRITE_ZAPDOS",
+      spriteId = 0,       -- no ROM OverworldSprites slot (mod-registered sprite)
+      type = 0,
+      x = 4,
+      y = 11,
+    },
   },
 }
 

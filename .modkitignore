@@ -1,1 +1,7 @@
 tests/crystal_legacy_changes_test.lua
+
+# dev-side data converters -- NEVER shipped (Phase 1 tooling)
+tools/converters/conv_encounters.py
+tools/converters/conv_trainers.py
+tools/converters/conv_marts.py
+tools/converters/conv_evolutions.py

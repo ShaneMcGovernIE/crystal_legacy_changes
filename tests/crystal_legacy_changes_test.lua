@@ -276,6 +276,71 @@ local function seedGoldFlowerShop()
 end
 seedGoldFlowerShop()
 
+-- The move-tutor step appends the CL tutor object to gold's GoldenrodCity map
+-- def (in place, like the berry clerk).  Seed a gold-shaped city with only 3
+-- stub objects so a no-op patch would leave it tutor-less: after the load the
+-- objects list must have 4 entries with the tutor last.
+local function seedGoldenrodCity()
+  data.gen2Maps = data.gen2Maps or {}
+  data.gen2Maps.GOLDENROD_CITY = {
+    id = "GOLDENROD_CITY",
+    name = "GOLDENROD CITY",
+    width = 18,
+    height = 18,
+    objects = {
+      {
+        eventFlag = 65535,
+        hours = { -1, -1 },
+        index = 1,
+        movement = 6,
+        palette = 0,
+        radius = { x = 0, y = 0 },
+        script = 1,
+        scriptKey = "1:1",
+        sight = 0,
+        sprite = "SPRITE_POKEFAN_M",
+        spriteId = 45,
+        type = 0,
+        x = 5,
+        y = 5,
+      },
+      {
+        eventFlag = 65535,
+        hours = { -1, -1 },
+        index = 2,
+        movement = 6,
+        palette = 0,
+        radius = { x = 0, y = 0 },
+        script = 2,
+        scriptKey = "2:2",
+        sight = 0,
+        sprite = "SPRITE_LASS",
+        spriteId = 40,
+        type = 0,
+        x = 8,
+        y = 8,
+      },
+      {
+        eventFlag = 65535,
+        hours = { -1, -1 },
+        index = 3,
+        movement = 6,
+        palette = 0,
+        radius = { x = 0, y = 0 },
+        script = 3,
+        scriptKey = "3:3",
+        sight = 0,
+        sprite = "SPRITE_YOUNGSTER",
+        spriteId = 42,
+        type = 0,
+        x = 10,
+        y = 12,
+      },
+    },
+  }
+end
+seedGoldenrodCity()
+
 -- The evolutions patch swaps each species' whole `evolutions` list (record
 -- semantics: patch replaces arrays wholesale, it does not append).  Seed
 -- gold-style rows on base species so a deep-merge patch would visibly keep
@@ -1455,6 +1520,220 @@ T.eq(vm.seen[1], "crystal_legacy_changes:dratini_party_full",
   "full party -> party full text")
 T.eq(#vm.seen, 1, "full party: no gift attempt")
 T.eq(vm.state.given, nil, "full party: nothing given")
+
+-- ---- Phase 3d: Goldenrod City Move Tutor ---------------------------------
+-- CL's tutor (maps/GoldenrodCity.asm:52-165, texts 486-548, object 12,22)
+-- teaches FLAMETHROWER / THUNDERBOLT / ICE BEAM for 1000 coins (NOT 4000 --
+-- Ask4000CoinsOkayText is a stale label in CL; TSP doc agrees on 1000),
+-- daily, gated on 7 Badges + Coin Case.  CL hides the tutor via
+-- MAPCALLBACK_OBJECTS until eligible; the mod appends an always-visible
+-- POKEFAN_M and moves every gate into the talk script.  The teach flow rides
+-- the engine's own TM path (learnMoveOn) behind a party-picker bridge.
+local moveTutorData = export.moveTutor.data
+T.check(type(export.moveTutor) == "table", "exports carry the move tutor handlers")
+T.eq(moveTutorData.cost, 1000, "tutor charges 1000 coins (CL source, TSP doc)")
+T.eq(moveTutorData.badgeGate, 7, "tutor gated on 7 badges (CL callback)")
+T.eq(moveTutorData.coinCaseItem, 54, "Coin Case is gold item 54")
+T.eq(moveTutorData.map, "GOLDENROD_CITY", "tutor map is Goldenrod City")
+T.eq(moveTutorData.scriptKey, "crystal_legacy_changes:goldenrod_move_tutor",
+  "tutor script key")
+T.eq(#moveTutorData.menu.items, 4, "menu has 4 options")
+T.eq(moveTutorData.menu.items[1], "FLAMETHROWER", "menu option 1")
+T.eq(moveTutorData.menu.items[2], "THUNDERBOLT", "menu option 2")
+T.eq(moveTutorData.menu.items[3], "ICE BEAM", "menu option 3 (ROM string, space)")
+T.eq(moveTutorData.menu.items[4], "CANCEL", "menu option 4 CANCEL")
+
+-- Text rows land in data.gen2Text under the mod prefix.
+for key, text in pairs(moveTutorData.texts) do
+  T.eq(data.gen2Text["crystal_legacy_changes:" .. key], text,
+    "tutor text row registered: " .. key)
+end
+
+-- The two commands merged into the table the VM dispatches.
+T.check(type(data.commands["crystal_legacy_changes:move_tutor_daily"]) == "function",
+  "command registered: move_tutor_daily")
+T.check(type(data.commands["crystal_legacy_changes:move_tutor_teach"]) == "function",
+  "command registered: move_tutor_teach")
+
+-- Object appended last to gold's GoldenrodCity objects (in-place append).
+local goldenrod = data.gen2Maps.GOLDENROD_CITY
+T.check(type(goldenrod) == "table", "GoldenrodCity map def reachable")
+T.eq(#goldenrod.objects, 4, "3 seeded objects + the tutor")
+local tutorObj = goldenrod.objects[4]
+T.eq(tutorObj.scriptKey, "crystal_legacy_changes:goldenrod_move_tutor",
+  "tutor object scriptKey")
+T.eq(tutorObj.sprite, "SPRITE_POKEFAN_M", "tutor sprite POKEFAN_M")
+T.eq(tutorObj.x, 12, "tutor tile x 12 (CL)")
+T.eq(tutorObj.y, 22, "tutor tile y 22 (CL)")
+T.eq(tutorObj.movement, 3, "tutor movement SPINRANDOM_SLOW (CL)")
+T.eq(tutorObj.eventFlag, 65535, "tutor always visible (no flag gate)")
+T.eq(tutorObj.type, 0, "tutor OBJECTTYPE_SCRIPT")
+T.eq(tutorObj.palette, 0, "tutor default palette (~= CL PAL_NPC_RED)")
+
+-- Talk script: CL MoveTutorScript as VM rows, callback gates moved into talk.
+local tutorScript = scripts[moveTutorData.scriptKey]
+T.check(type(tutorScript) == "table", "tutor script registered")
+T.eq(tutorScript[1].op, "faceplayer", "row 1 faceplayer")
+T.eq(tutorScript[2].op, "opentext", "row 2 opentext")
+-- badge gate
+T.eq(tutorScript[3].op, "readvar", "row 3 reads VAR_BADGES")
+T.eq(tutorScript[3].var, 0x07, "VAR_BADGES id 0x07")
+T.eq(tutorScript[4].op, "ifless", "row 4 badge gate branch")
+T.eq(tutorScript[4].value, 7, "badge gate threshold 7")
+T.eq(tutorScript[4].script[1].text, "crystal_legacy_changes:badge",
+  "badge gate refusal text")
+-- coin case gate
+T.eq(tutorScript[5].op, "checkitem", "row 5 checks the Coin Case")
+T.eq(tutorScript[5].args[1], 54, "Coin Case item id 54")
+T.eq(tutorScript[6].op, "iffalse", "row 6 coin-case branch")
+T.eq(tutorScript[6].script[1].text, "crystal_legacy_changes:coinCase",
+  "coin-case refusal text")
+-- daily gate
+T.eq(tutorScript[7][1], "crystal_legacy_changes:move_tutor_daily",
+  "row 7 runs the daily gate command")
+-- greet / coins ask
+T.eq(tutorScript[8].op, "writetext", "row 8 greet text")
+T.eq(tutorScript[8].text, "crystal_legacy_changes:greet", "greet key")
+T.eq(tutorScript[9].op, "yesorno", "row 9 greet yes/no")
+T.eq(tutorScript[10].op, "iffalse", "row 10 greet decline branch")
+T.eq(tutorScript[10].script[1].text, "crystal_legacy_changes:no", "decline text")
+T.eq(tutorScript[11].op, "writetext", "row 11 coins ask text")
+T.eq(tutorScript[11].text, "crystal_legacy_changes:coinsAsk", "coins ask key")
+T.eq(tutorScript[12].op, "yesorno", "row 12 coins yes/no")
+T.eq(tutorScript[13].op, "iffalse", "row 13 coins decline branch")
+T.eq(tutorScript[13].script[1].text, "crystal_legacy_changes:tooBad",
+  "coins decline text")
+-- coins ladder
+T.eq(tutorScript[14].op, "checkcoins", "row 14 checks the coin count")
+T.eq(tutorScript[14].args[1], 232, "checkcoins low byte 232")
+T.eq(tutorScript[14].args[2], 3, "checkcoins high byte 3 (1000 coins)")
+T.eq(tutorScript[15].op, "ifequal", "row 15 HAVE_LESS branch")
+T.eq(tutorScript[15].value, 2, "HAVE_LESS = scriptVar 2")
+T.eq(tutorScript[15].script[1].text, "crystal_legacy_changes:insufficient",
+  "not-enough-coins text")
+-- menu
+T.eq(tutorScript[16].op, "special", "row 16 DisplayCoinCaseBalance")
+T.eq(tutorScript[16].id, 78, "DisplayCoinCaseBalance special id 78")
+T.eq(tutorScript[17].op, "writetext", "row 17 which-move text")
+T.eq(tutorScript[17].text, "crystal_legacy_changes:which", "which-move key")
+T.eq(tutorScript[18].op, "loadmenu", "row 18 loads the menu")
+T.eq(#tutorScript[18].menu.items, 4, "menu header carries 4 items")
+T.eq(tutorScript[19].op, "verticalmenu", "row 19 verticalmenu")
+T.eq(tutorScript[20].op, "closewindow", "row 20 closewindow")
+-- branches
+T.eq(tutorScript[21].op, "ifequal", "row 21 branch 1")
+T.eq(tutorScript[21].value, 1, "choice 1")
+T.eq(tutorScript[21].script[1][1], "crystal_legacy_changes:move_tutor_teach",
+  "choice 1 -> teach command")
+T.eq(tutorScript[21].script[1][2], "FLAMETHROWER", "choice 1 move")
+T.eq(tutorScript[22].script[1][2], "THUNDERBOLT", "choice 2 move")
+T.eq(tutorScript[23].script[1][2], "ICE_BEAM", "choice 3 move")
+T.eq(tutorScript[24].op, "end", "row 24 ends on CANCEL")
+T.eq(export.rebalance.moveTutorObjects, 1, "counts: tutor object appended")
+T.eq(export.rebalance.moveTutorScripts, 1, "counts: tutor script registered")
+
+-- Behavior: daily gate ------------------------------------------------
+-- Unused today -> fall through (nil), no text.
+clearSaveFlags()
+vm = fakeVm({})
+withGame(stubSave({}, {}, 0))
+T.eq(export.moveTutor.daily({ vm = vm }), nil, "daily gate: nil when unused")
+T.eq(#vm.seen, 0, "daily gate: no text when unused")
+
+-- Taught today -> refusal text + "end" halts the row list.
+local usedSave = stubSave({}, {}, 0)
+usedSave.dailyFlags = { goldenrodMoveTutor = true }
+withGame(usedSave)
+T.eq(export.moveTutor.daily({ vm = vm }), "end", "daily gate: end when used today")
+T.eq(vm.seen[1], "crystal_legacy_changes:daily", "daily refusal text shown")
+
+-- Behavior: teach flow (party-picker bridge) --------------------------
+-- The teach command parks the VM coroutine on {kind="mod_party_picker"};
+-- the Gen2PartyMenu onChoose would resume the vm.  Headlessly drive the
+-- same contract with coroutine.wrap: first call runs to the yield and
+-- returns the request, the second call resumes with the chosen mon.
+local function driveTeach(game, moveName)
+  local co = coroutine.wrap(function()
+    -- the wrapped fn must return the command's result or coroutine.wrap
+    -- swallows it (the engine's runCmd reads that return)
+    return export.moveTutor.teach({ vm = vm }, moveName)
+  end)
+  local req = co()
+  T.eq(type(req) == "table" and req.kind, "mod_party_picker",
+    "teach parks on the party picker")
+  return co, req
+end
+
+-- Species gate: EKANS carries none of the tutor moves in CL -> refused.
+clearSaveFlags()
+vm = fakeVm({})
+local learnCalls, said
+-- learnMoveOn/say are engine METHODS (Game2:learnMoveOn): the colon call in
+-- the command injects the game as arg 1, so the stubs must be colon-shaped.
+local gateGame = {
+  save = stubSave({}, {}, 0),
+  learnMoveOn = function(game, mon, moveId, onDone)
+    learnCalls[#learnCalls + 1] = { mon = mon, move = moveId, onDone = onDone }
+  end,
+  say = function(game, text) said = text end,
+}
+learnCalls = {}
+-- NOT withGame(): it wraps the arg in { save = ... } and would drop the
+-- learnMoveOn/say stubs; the teach command needs the full game object.
+run.loader.game = gateGame
+local co = driveTeach(gateGame, "FLAMETHROWER")
+T.eq(co({ species = "EKANS", moves = {} }), "end", "invalid species ends the script")
+T.eq(vm.seen[1], "crystal_legacy_changes:incompatible", "species refusal text")
+T.eq(#learnCalls, 0, "species gate: no learn attempt")
+
+-- KnowsMove gate: already knowing the move -> refused, no re-teach.
+co = driveTeach(gateGame, "FLAMETHROWER")
+T.eq(co({ species = "CHARIZARD", moves = { { id = "FLAMETHROWER" } } }), "end",
+  "known move ends the script")
+T.eq(vm.seen[1], "crystal_legacy_changes:incompatible", "known-move refusal text")
+T.eq(#learnCalls, 0, "known-move gate: no learn attempt")
+
+-- Success: CHARIZARD (CL tmhm FLAMETHROWER) -> understood, learnMoveOn with
+-- the move name; onDone takes 1000 coins, sets the daily flag, farewell.
+local paySave = stubSave({}, {}, 0)
+paySave.player.coins = 3000
+local payGame = {
+  save = paySave,
+  learnMoveOn = function(game, mon, moveId, onDone)
+    learnCalls[#learnCalls + 1] = { mon = mon, move = moveId, onDone = onDone }
+  end,
+  say = function(game, text) said = text end,
+}
+learnCalls = {}
+said = nil
+vm = fakeVm({})
+run.loader.game = payGame
+co = driveTeach(payGame, "FLAMETHROWER")
+local mon = { species = "CHARIZARD", moves = {} }
+T.eq(co(mon), "end", "successful teach ends the script")
+T.eq(vm.seen[1], "crystal_legacy_changes:understood", "understood text shown")
+T.eq(#learnCalls, 1, "learnMoveOn called once")
+T.eq(learnCalls[1].mon, mon, "learnMoveOn carries the chosen mon")
+T.eq(learnCalls[1].move, "FLAMETHROWER", "learnMoveOn carries the move name")
+T.eq(paySave.player.coins, 3000, "coins unchanged until the learn completes")
+-- The learn flow completes later (async): coins taken, daily flag set, farewell.
+learnCalls[1].onDone(true)
+T.eq(paySave.player.coins, 2000, "1000 coins taken on success")
+T.eq(paySave.dailyFlags.goldenrodMoveTutor, true, "daily flag set on success")
+T.eq(said, moveTutorData.texts.farewell, "farewell said after the lesson")
+-- Learned=false -> nothing charged, no farewell.
+learnCalls[1].onDone(false)
+T.eq(paySave.player.coins, 2000, "failed learn charges nothing")
+
+-- Teach with the daily flag already set -> daily refusal, no picker request.
+clearSaveFlags()
+vm = fakeVm({})
+usedSave = stubSave({}, {}, 0)
+usedSave.dailyFlags = { goldenrodMoveTutor = true }
+withGame(usedSave)
+T.eq(export.moveTutor.teach({ vm = vm }, "FLAMETHROWER"), "end",
+  "teach refuses when today's lesson is used")
+T.eq(vm.seen[1], "crystal_legacy_changes:daily", "teach daily refusal text")
 
 run.release()
 T.finish("crystal_legacy_changes")

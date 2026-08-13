@@ -128,6 +128,7 @@ T.eq(moves:get("IRON_TAIL").effectChance, 20,
   "Iron Tail Defense drop chance is 20 percent")
 T.eq(moves:get("SKY_ATTACK").effect, "EFFECT_NORMAL_HIT",
   "Sky Attack does not charge")
+T.eq(moves:get("SACRED_FIRE").pp, 10, "Sacred Fire PP is 10")
 
 T.eq(#pokemon:get("BULBASAUR").levelMoves, 11,
   "Bulbasaur gets the Crystal Legacy level-up list")

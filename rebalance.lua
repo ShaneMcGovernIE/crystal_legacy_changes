@@ -42,6 +42,7 @@ return {
 
     ["Fire Spin"] = { power = 35, accuracy = 100, pp = 15 },
     ["Flame Wheel"] = { power = 65, accuracy = 100, pp = 25 },
+    ["Sacred Fire"] = { pp = 10 },
     ["Sunny Day"] = { pp = 10 },
 
     ["Clamp"] = { power = 35, accuracy = 100, pp = 10 },

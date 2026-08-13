@@ -2,7 +2,8 @@
 
 Applies the explicit Pokemon stat and move changes documented in the supplied
 Crystal Legacy design document to Pokemon Gold through the native Gen1Recomp
-mod API.
+mod API. Documented names are resolved to Gold registry ids by iterating the
+content registries at load time.
 
 ## Implemented
 
@@ -13,16 +14,15 @@ mod API.
 - 251 species TM/HM compatibility lists and 6,485 unique compatibility rows
   from the TMHM Learnsets tab. The three tutor-only columns are excluded.
 - Documented move power, accuracy, PP, type, priority, critical-rate, and
-  compatible effect changes.
+  compatible effect changes, including Sacred Fire's PP.
 - Gold physical/special type categories for Ghost and Dark.
 - No ROM-derived files or Crystal ROM patch data.
 
 ## Deliberately not included yet
 
-- Wild encounters and trainer parties, for the same reason.
+- Wild encounters and trainer parties (PLAN.md Phases 1–2).
 - Team Rocket, Celebi, fossil, gift, mart, Move Tutor, Battle Tower, and
-  rematch story changes. Gold's current public mod surface does not expose the
-  required script, mart, gift, and event-table seams.
+  rematch story changes (PLAN.md Phase 3).
 - Exact Triple Kick 20/60/120 scaling. Gold's native effect currently owns
   that calculation, so changing only the move record would claim the wrong
   behavior.

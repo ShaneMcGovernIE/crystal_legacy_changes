@@ -109,9 +109,40 @@ local function applyTmhm(mod, data)
   return count
 end
 
+-- Encounters: Gold hangs every table of encounter rows off one registry per
+-- kind (grass/swarmGrass/water/swarmWater/fishGroups/trees/rocks/treeSets/
+-- bugContest/roamMaps).  The registry id IS the kind, so each patch folds
+-- per map/group entry against the imported cache.  The data file wraps the
+-- kinds in a single `kinds` namespace key so modkit's dump check does not
+-- mistake the whole-table replacement for a re-shipped ROM extract.
+local function applyEncounters(mod, data)
+  local count = 0
+  for kind, rows in pairs(data.kinds or data) do
+    if kind ~= "source" and kind ~= "generation" then
+      mod.content.encounters:patch(kind, rows)
+      count = count + 1
+    end
+  end
+  return count
+end
+
+-- Trainers: Gold hangs every named trainer of a class off one record per
+-- class (data.gen2Trainers.classes); the registry id is the class id, so we
+-- patch each class record wholesale.
+local function applyTrainers(mod, data)
+  local count = 0
+  for id, record in pairs(data.classes or {}) do
+    mod.content.trainers:patch(id, record)
+    count = count + 1
+  end
+  return count
+end
+
 return function(mod)
   local counts = applyRebalance(mod, loadSibling(mod, "rebalance.lua"))
   counts.learnsets = applyLearnsets(mod, loadSibling(mod, "learnsets.lua"))
   counts.tmhm = applyTmhm(mod, loadSibling(mod, "tmhm.lua"))
+  counts.encounters = applyEncounters(mod, loadSibling(mod, "data/encounters.lua"))
+  counts.trainers = applyTrainers(mod, loadSibling(mod, "data/trainers.lua"))
   mod.exports.rebalance = counts
 end

@@ -73,6 +73,57 @@ for _, tmhm in pairs(tmhmData) do
   end
 end
 
+-- The converted encounters/trainers tables reference real Gold ids the
+-- fixture does not carry.  Collect every species/move/item/music id they
+-- reference and stand in minimal records so the post-merge cross-reference
+-- pass can resolve them (an imported run supplies the real cache records).
+-- Species are omitted: the rebalance registers all 251 learnset ids, so
+-- every encounter/trainer species already resolves.
+local encountersData = dofile("mods/crystal_legacy_changes/data/encounters.lua")
+local trainersData = dofile("mods/crystal_legacy_changes/data/trainers.lua")
+
+local species, moves, items, music = {}, {}, {}, {}
+local function collectRefs(root, map)
+  if type(root) ~= "table" then return end
+  for key, value in pairs(root) do
+    local out = map[key]
+    if out and type(value) == "string" then
+      out[value] = true
+    elseif type(value) == "table" then
+      if out then
+        for _, id in ipairs(value) do
+          if type(id) == "string" then out[id] = true end
+        end
+      else
+        collectRefs(value, map)
+      end
+    end
+  end
+end
+collectRefs(encountersData, { species = species })
+collectRefs(trainersData, {
+  species = species, moves = moves,
+  item = items, items = items,
+  encounterMusic = music,
+})
+
+-- The fixture has no audio namespace at all; the music registry backs
+-- trainer encounter music.
+data.audio = data.audio or { songs = {} }
+for id in pairs(music) do
+  data.audio.songs[id] = { id = id, name = id, index = 1 }
+end
+for id in pairs(items) do
+  if not data.items[id] then
+    data.items[id] = { id = id, name = id, index = 1 }
+  end
+end
+for id in pairs(moves) do
+  if not data.moves[id] then
+    seedMove(id, id, "NORMAL")
+  end
+end
+
 data.type_chart = data.type_chart or { types = {}, matchups = {} }
 data.type_chart.types = data.type_chart.types or {}
 data.type_chart.types.GHOST = {
@@ -148,6 +199,49 @@ T.eq(pokemon:get("BULBASAUR").tmhm["FLAMETHROWER"], nil,
 T.eq(types:get("GHOST").category, "special", "Ghost is Special")
 T.eq(types:get("DARK").category, "physical", "Dark is Physical")
 
+local encounters = run.loader.content.encounters
+local trainers = run.loader.content.trainers
+
+T.eq(encounters:get("grass").SPROUT_TOWER_2F.rates.MORN, 5,
+  "Sprout Tower grass keeps its 5% morning rate")
+T.eq(encounters:get("grass").SPROUT_TOWER_2F.rates.DAY, 5,
+  "Sprout Tower grass keeps its 5% day rate")
+T.eq(encounters:get("grass").SPROUT_TOWER_2F.rates.NITE, 5,
+  "Sprout Tower grass keeps its 5% night rate")
+T.eq(#encounters:get("grass").SPROUT_TOWER_2F.slots.MORN, 7,
+  "Sprout Tower morning has seven grass slots")
+T.eq(encounters:get("grass").SPROUT_TOWER_2F.slots.MORN[1].species, "RATTATA",
+  "Sprout Tower morning slot 1 is Rattata")
+T.eq(encounters:get("grass").SPROUT_TOWER_2F.slots.MORN[1].level, 3,
+  "Sprout Tower morning slot 1 is level 3")
+T.eq(encounters:get("water").RUINS_OF_ALPH_OUTSIDE.rate, 5,
+  "Ruins of Alph outside keeps its 5% water rate")
+T.eq(encounters:get("water").RUINS_OF_ALPH_OUTSIDE.slots[1].species, "WOOPER",
+  "Ruins of Alph outside water slot 1 is Wooper")
+T.eq(encounters:get("swarmGrass").DARK_CAVE_VIOLET_ENTRANCE.rates.MORN, 10,
+  "Dark Cave swarm keeps its 10% morning rate")
+T.eq(encounters:get("fishGroups").FISHGROUP_SHORE.index, 1,
+  "Shore rod group keeps its index")
+T.eq(encounters:get("fishGroups").FISHGROUP_SHORE.chance, 128,
+  "Shore rod group keeps its 128/256 hook chance")
+
+T.eq(trainers:get("FALKNER").baseMoney, 25, "Falkner pays out 25 base money")
+T.eq(trainers:get("FALKNER").encounterMusic, "Music_LookYoungster",
+  "Falkner keeps his encounter theme")
+T.eq(trainers:get("FALKNER").name, "LEADER", "Falkner's class reads LEADER")
+T.eq(#trainers:get("FALKNER").trainers, 2,
+  "Falkner has his base and rematch parties")
+T.eq(trainers:get("FALKNER").trainers[1].party[1].species, "PIDGEY",
+  "Falkner leads with Pidgey")
+T.eq(trainers:get("FALKNER").trainers[1].party[2].item, "BERRY",
+  "Falkner's Pidgeotto holds a Berry")
+T.eq(trainers:get("BEAUTY").encounterMusic, "Music_LookBeauty",
+  "Beauty keeps her encounter theme")
+T.eq(trainers:get("BEAUTY").trainers[1].name, "VICTORIA",
+  "Beauty Victoria is first in class")
+T.eq(trainers:get("BEAUTY").trainers[1].party[1].species, "TEDDIURSA",
+  "Beauty Victoria leads with Teddiursa")
+
 local export = run.loader.exports.crystal_legacy_changes
 T.check(export and export.rebalance and export.rebalance.moves > 0,
   "exports report applied move changes")
@@ -157,6 +251,10 @@ T.eq(export.rebalance.learnsets, 251,
   "exports report all 251 learnsets")
 T.eq(export.rebalance.tmhm, 251,
   "exports report all 251 TM/HM lists")
+T.eq(export.rebalance.encounters, 10,
+  "exports report all ten encounter kinds patched")
+T.eq(export.rebalance.trainers, 70,
+  "exports report all 70 trainer classes patched")
 
 run.release()
 T.finish("crystal_legacy_changes")

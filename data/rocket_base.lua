@@ -3,8 +3,8 @@
 -- The audit (deltas 1-9 + sprite 11) compared gold's shipped Base maps against
 -- CL's: almost every gold object/coordEvent/bgEvent/trainer/script already
 -- matches CL, so this file carries only the real differences.  Every gold
--- value below was read from the imported runtime maps (data/generated/maps.lua)
--- and cross-checked against the asm walkthrough section 11.
+-- value below was read from the imported runtime maps (the generated maps
+-- cache) and cross-checked against the asm walkthrough section 11.
 --
 --   1  B1F (21,12) itemball flag 1643: X_ACCURACY(33) -> GUARD_SPEC(41)
 --   2  B2F GruntM18: (2,1) sight 3 -> (4,1) sight 1

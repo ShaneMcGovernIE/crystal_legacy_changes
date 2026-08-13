@@ -19,6 +19,17 @@ return {
   },
   credits = {
     { who = "TheSmithPlays (TSP)", for_ = "the Crystal Legacy design document" },
+    { who = "cRz-Shadows", for_ = "Crystal Legacy development" },
+    { who = "Katt", for_ = "Pokemon overworld sprites" },
+    { who = "Karlos", for_ = "Pokemon overworld sprites" },
+    { who = "Chamber", for_ = "Pokemon party sprites" },
+    { who = "Soloo993", for_ = "Pokemon party sprites" },
+    { who = "Blue Emerald", for_ = "Pokemon party sprites" },
+    { who = "Lake", for_ = "Pokemon party sprites" },
+    { who = "Neslug", for_ = "Pokemon party sprites" },
+    { who = "Pikachu25", for_ = "Pokemon party sprites" },
+    { who = "Tom Wang", for_ = "Pokemon party sprites" },
+    { who = "Seasick", for_ = "Pokemon party sprites" },
   },
   compat = { engine = ">=0.0.0-0 <2.0.0", modApi = 2 },
 }

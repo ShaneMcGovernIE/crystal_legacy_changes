@@ -16,19 +16,47 @@ content registries at load time.
 - Documented move power, accuracy, PP, type, priority, critical-rate, and
   compatible effect changes, including Sacred Fire's PP.
 - Gold physical/special type categories for Ghost and Dark.
+- Wild encounters and trainer parties from the Crystal Legacy data sheet
+  (`data/encounters.lua`, `data/trainers.lua`).
+- Gold marts reshelved to the CL lists (`data/marts.lua`). Celadon 4F's mail
+  shelf is repurposed to CL vitamins (intentional, matches CL).
+- Evolution changes from the CL data sheet (`data/evolutions.lua`).
+- Story and event content: Team Rocket Base and RadioTower, the Goldenrod Move
+  Tutor, Game Corner prizes, fossils + Ruins of Alph revival, the Dratini
+  Master, Mew (Route 24, releases at 249 caught — >248), Celebi/GS Ball, and
+  the Kanto birds (`data/rocket_base.lua`, `data/rocket_tower.lua`,
+  `data/move_tutor.lua`, `data/statics.lua`, `data/fossils.lua`,
+  `data/berry_shop.lua`).
 - No ROM-derived files or Crystal ROM patch data.
 
 ## Deliberately not included yet
 
-- Wild encounters and trainer parties (PLAN.md Phases 1–2).
-- Battle Tower, rematch story changes, and remaining Team Rocket content
-  (PLAN.md Phase 3).
-- Exact Triple Kick 20/60/120 scaling. Gold's native effect currently owns
-  that calculation, so changing only the move record would claim the wrong
-  behavior.
-- Phase 4 overworld art gaps, never faked: Rocket Base B2F's six electrodes
-  still render Gold's VOLTORB art (no SPRITE_ELECTRODE overworld art ships),
-  and Rocket Base B3F's Murkrow still reuses Gold's SPRITE_MOLTRES bird art.
+The remaining items are Phase 4 engine-gap work (they need engine/fork
+patches, not mod data) and are never faked:
+
+- Battle Tower trainers and rewards.
+- Hard and Hardcore modes (battle item-ban hook, forced Set, no-revive).
+- Trainer held items (every boss row in the CL doc carries one).
+- Sprites — known overworld art gaps, never faked:
+  - Rocket Base B2F's six electrodes still render Gold's VOLTORB art (no
+    SPRITE_ELECTRODE overworld art ships), and Rocket Base B3F's Murkrow
+    still reuses Gold's SPRITE_MOLTRES bird art.
+  - Mew (Route 24) and Articuno/Zapdos (Route 20 / Route 10 North) have no
+    overworld art in Gold — their story wiring ships in `data/statics.lua`
+    (flags/scripts/coords) and activates with the Phase 4 sprite drop.
+    Moltres (Victory Road) and Celebi (Ilex shrine) are live today: Gold
+    ships SPRITE_MOLTRES and Celebi is a wild battle, so it needs no sprite.
+    The GS Ball's bag icon is a Phase 4 art gap too.
+- The Flower Shop berry shop (`data/berry_shop.lua`) ships mod-side but its
+  mart-shelf gate is a Phase 4 engine item.
+- The Goldenrod Move Tutor's proper UI (the tutor scene ships now through
+  Gold's native tutor scene).
+- The QoL batch: HM deletable, running shoes, TM names visible, Repel
+  prompt, faster healing.
+
+Exact Triple Kick 20/60/120 scaling is likewise not represented: Gold's
+native effect owns that calculation, so changing only the move record would
+claim the wrong behavior.
 
 The document's `Faint Attack` accuracy is written as 101%. The engine schema
 allows at most 100%, so this implementation uses 100% as the valid equivalent.

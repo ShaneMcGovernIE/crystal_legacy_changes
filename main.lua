@@ -480,6 +480,74 @@ local function applyFossils(mod, data, counts)
   }
 end
 
+-- Phase 3a berry shop: the Goldenrod Flower Shop gets CL's clerk selling the
+-- MART_BERRYS / MART_BERRYS_2 shelves, badge-gated at 7 badges exactly like
+-- CL's BerryMartScript.  The two shelves have no gold slot under NUM_MARTS =
+-- 34, so they are appended at the first free mart ids (34/35 -> lists[35]/[36])
+-- and the clerk's script is injected into gen2Scripts -- the same mods.loaded
+-- seam applyMarts/applyStatics/applyFossils use.
+--
+-- BLOCKED ON PHASE 4 (engine): MartMenu.inventory (src/ui/gen2/MartMenu.lua:347)
+-- unconditionally returns DEFAULT_MART for martId >= NUM_MARTS (34), so until
+-- the engine fix (data-driven fallback: DEFAULT_MART only when
+-- (marts.lists or marts)[martId + 1] is not a table) the clerk opens the menu
+-- but shows Poke Ball/Potion.  The suite pins that current fallback.
+local function applyBerryShop(mod, data, counts, martsData)
+  counts.berryShop = { lists = 0, object = 0, script = 0 }
+
+  mod.events:on("mods.loaded", function(payload)
+    local target = payload and payload.data
+    if not target then return end
+
+    -- (a) Append the two berry shelves at the first free mart ids (34/35).
+    local marts = target.gen2Marts
+    if type(marts) == "table" and type(marts.lists) == "table" then
+      local lists = marts.lists
+      for i, name in ipairs(data.shelves or {}) do
+        local stock = martsData and martsData.marts and martsData.marts[name]
+        local id = data.martIds and data.martIds[i]
+        if type(stock) == "table" and id then
+          lists[id + 1] = stock
+          counts.berryShop.lists = counts.berryShop.lists + 1
+        end
+      end
+    end
+
+    -- (b) Add CL's clerk object to the Flower Shop map def.
+    local maps = target.gen2Maps
+    local map = type(maps) == "table" and maps[data.map]
+    if type(map) == "table" and type(map.objects) == "table"
+      and type(data.clerk) == "table" then
+      table.insert(map.objects, data.clerk)
+      counts.berryShop.object = counts.berryShop.object + 1
+    end
+
+    -- (c) Inject BerryMartScript: faceplayer, opentext, readvar VAR_BADGES,
+    --     if badged < 7 -> pokemart MART_BERRYS (id 34), else pokemart
+    --     MART_BERRYS_2 (id 35), closetext, end (CL GoldenrodFlowerShop.asm
+    --     :106-119).  mod rows use named fields (readvar.var, ifless.value +
+    --     ifless.script, pokemart.martId), which runCmd reads directly.
+    local scripts = target.gen2Scripts
+    if type(scripts) == "table" and type(data.scriptKey) == "string" then
+      local ids = data.martIds or {}
+      scripts[data.scriptKey] = {
+        { op = "faceplayer" },
+        { op = "opentext" },
+        { op = "readvar", var = 0x07 }, -- VAR_BADGES
+        { op = "ifless", value = data.badgeGate or 7, script = {
+            { op = "pokemart", martId = ids[1] },
+        } },
+        { op = "pokemart", martId = ids[2] },
+        { op = "closetext" },
+        { op = "end" },
+      }
+      counts.berryShop.script = counts.berryShop.script + 1
+    end
+  end)
+
+  mod.exports.berryShop = { data = data }
+end
+
 return function(mod)
   local counts = applyRebalance(mod, loadSibling(mod, "rebalance.lua"))
   counts.learnsets = applyLearnsets(mod, loadSibling(mod, "learnsets.lua"))
@@ -493,5 +561,7 @@ return function(mod)
   counts.statics = 0
   applyStatics(mod, loadSibling(mod, "data/statics.lua"), counts)
   applyFossils(mod, loadSibling(mod, "data/fossils.lua"), counts)
+  applyBerryShop(mod, loadSibling(mod, "data/berry_shop.lua"), counts,
+    loadSibling(mod, "data/marts.lua"))
   mod.exports.rebalance = counts
 end

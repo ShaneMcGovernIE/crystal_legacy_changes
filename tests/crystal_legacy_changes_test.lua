@@ -146,6 +146,53 @@ for _, id in ipairs({
   data.gen2MoveEffects[id] = { kind = "full" }
 end
 
+-- The shared fixture's encounters base carries NO swarm rows (the Gen 2
+-- encounters registry's base path is data.gen2Encounters, which the fixture
+-- leaves empty), so the swarm assertions below would pass even if the loader
+-- deep-merged instead of overriding.  Seed Gold's removed swarm rows (Route
+-- 38 + Mount Mortar land swarms, Mount Mortar surf swarm) into the base so
+-- the override seam is pinned: with a deep-merge patch these rows would
+-- survive the load; with override they must be gone.
+local function seedSwarmRows()
+  local function swarmRow()
+    return {
+      { level = 16, species = "FIXMON_A" },
+      { level = 16, species = "FIXMON_A" },
+      { level = 16, species = "FIXMON_A" },
+      { level = 16, species = "FIXMON_A" },
+      { level = 13, species = "FIXMON_B" },
+      { level = 13, species = "FIXMON_B" },
+      { level = 13, species = "FIXMON_B" },
+    }
+  end
+  data.gen2Encounters = {
+    swarmGrass = {
+      ROUTE_38 = {
+        map = "ROUTE_38",
+        rates = { MORN = 25, DAY = 25, NITE = 25 },
+        slots = { MORN = swarmRow(), DAY = swarmRow(), NITE = swarmRow() },
+      },
+      MOUNT_MORTAR_1F_OUTSIDE = {
+        map = "MOUNT_MORTAR_1F_OUTSIDE",
+        rates = { MORN = 15, DAY = 15, NITE = 15 },
+        slots = { MORN = swarmRow(), DAY = swarmRow(), NITE = swarmRow() },
+      },
+    },
+    swarmWater = {
+      MOUNT_MORTAR_1F_OUTSIDE = {
+        map = "MOUNT_MORTAR_1F_OUTSIDE",
+        rate = 10,
+        slots = {
+          { level = 20, species = "FIXMON_A" },
+          { level = 20, species = "FIXMON_A" },
+          { level = 20, species = "FIXMON_A" },
+        },
+      },
+    },
+  }
+end
+seedSwarmRows()
+
 local run = T.sdk.loadMod("mods/crystal_legacy_changes", {
   data = data,
   generation = 2,
@@ -277,16 +324,25 @@ T.eq(slot(encounters, "grass", "SILVER_CAVE_ROOM_3", "MORN", 7).level, 40,
   "Mt. Silver Room 3 Pupitar is level 40")
 
 -- The swarm kinds are complete replacements: Crystal keeps only the Dark
--- Cave and Route 35 land swarms and ships NO surf swarms, so Gold's removed
--- rows (Route 38, Mount Mortar) must not survive the merge.
+-- Cave and Route 35 land swarms and ships NO surf swarms.  The rows asserted
+-- nil below are seeded into the fixture base above, so this pins the
+-- override seam -- a deep-merge patch would let them survive; override
+-- removes them.
 T.eq(encounters:get("swarmGrass").MOUNT_MORTAR_1F_OUTSIDE, nil,
   "Mount Mortar's land swarm is removed")
 T.eq(encounters:get("swarmGrass").ROUTE_38, nil,
-  "Route 38's swarm is removed")
+  "seeded Route 38 land swarm is gone post-load (override pin)")
 T.eq(encounters:get("swarmWater").MOUNT_MORTAR_1F_OUTSIDE, nil,
-  "Mount Mortar's surf swarm is removed")
+  "seeded Mount Mortar surf swarm is gone post-load (override pin)")
 T.eq(next(encounters:get("swarmWater")), nil,
   "Crystal ships no surf swarms")
+local swarmGrassMaps = {}
+for mapId in pairs(encounters:get("swarmGrass")) do
+  swarmGrassMaps[#swarmGrassMaps + 1] = mapId
+end
+table.sort(swarmGrassMaps)
+T.eq(table.concat(swarmGrassMaps, ","), "DARK_CAVE_VIOLET_ENTRANCE,ROUTE_35",
+  "swarmGrass holds exactly Crystal's two maps after the override")
 
 T.eq(trainers:get("FALKNER").baseMoney, 25, "Falkner pays out 25 base money")
 T.eq(trainers:get("FALKNER").encounterMusic, "Music_LookYoungster",

@@ -700,6 +700,87 @@ local function seedGoldRadioTower()
 end
 seedGoldRadioTower()
 
+-- Team Rocket Base: gold's shipped objects, exactly as the imported runtime
+-- data has them (maps.lua).  applyRocketBase repoints the B1F (21,12) ball,
+-- moves B2F GruntM18 and the B3F grunts/scientists, re-sprites the B3F exec
+-- to SPRITE_ARCHER and appends the UltraBall at (14,10).
+local function seedGoldRocketBase()
+  data.gen2Maps.TEAM_ROCKET_BASE_B1F = {
+    id = "TEAM_ROCKET_BASE_B1F",
+    objects = {
+      {
+        eventFlag = 1643, hours = { -1, -1 }, index = 9, movement = 1,
+        palette = 0, radius = { x = 0, y = 0 }, script = 10258,
+        scriptKey = "00:2812", sight = 0, sprite = "SPRITE_POKE_BALL",
+        spriteId = 84, type = 1, x = 21, y = 12,
+        itemball = { item = 33, quantity = 1 },
+      },
+    },
+  }
+  data.gen2Maps.TEAM_ROCKET_BASE_B2F = {
+    id = "TEAM_ROCKET_BASE_B2F",
+    objects = {
+      {
+        eventFlag = 1754, hours = { -1, -1 }, index = 10, movement = 9,
+        palette = 0, radius = { x = 0, y = 0 }, script = 23932,
+        scriptKey = "45:4d9d", sight = 3, sprite = "SPRITE_ROCKET",
+        spriteId = 53, type = 2, x = 2, y = 1,
+      },
+    },
+  }
+  data.gen2Maps.TEAM_ROCKET_BASE_B3F = {
+    id = "TEAM_ROCKET_BASE_B3F",
+    objects = {
+      {
+        eventFlag = 1755, hours = { -1, -1 }, index = 2, movement = 7,
+        palette = 0, radius = { x = 0, y = 0 }, script = 10258,
+        scriptKey = "00:2812", sight = 0, sprite = "SPRITE_ROCKET",
+        spriteId = 53, type = 0, x = 8, y = 3,
+      },
+      {
+        eventFlag = 1754, hours = { -1, -1 }, index = 5, movement = 9,
+        palette = 0, radius = { x = 0, y = 0 }, script = 24015,
+        scriptKey = "45:5d76", sight = 3, sprite = "SPRITE_ROCKET",
+        spriteId = 53, type = 2, x = 5, y = 15,
+      },
+      {
+        eventFlag = 1754, hours = { -1, -1 }, index = 6, movement = 9,
+        palette = 0, radius = { x = 0, y = 0 }, script = 24037,
+        scriptKey = "45:5d8d", sight = 4, sprite = "SPRITE_SCIENTIST",
+        spriteId = 60, type = 2, x = 25, y = 12,
+      },
+      {
+        eventFlag = 1754, hours = { -1, -1 }, index = 7, movement = 9,
+        palette = 0, radius = { x = 0, y = 0 }, script = 24057,
+        scriptKey = "45:5da1", sight = 3, sprite = "SPRITE_SCIENTIST",
+        spriteId = 60, type = 2, x = 14, y = 15,
+      },
+      {
+        eventFlag = 1645, hours = { -1, -1 }, index = 10, movement = 1,
+        palette = 0, radius = { x = 0, y = 0 }, script = 10258,
+        scriptKey = "00:2812", sight = 0, sprite = "SPRITE_POKE_BALL",
+        spriteId = 84, type = 1, x = 1, y = 12,
+        itemball = { item = 38, quantity = 1 },
+      },
+      {
+        eventFlag = 1646, hours = { -1, -1 }, index = 11, movement = 1,
+        palette = 0, radius = { x = 0, y = 0 }, script = 10258,
+        scriptKey = "00:2812", sight = 0, sprite = "SPRITE_POKE_BALL",
+        spriteId = 84, type = 1, x = 3, y = 12,
+        itemball = { item = 44, quantity = 1 },
+      },
+      {
+        eventFlag = 1647, hours = { -1, -1 }, index = 12, movement = 1,
+        palette = 0, radius = { x = 0, y = 0 }, script = 10258,
+        scriptKey = "00:2812", sight = 0, sprite = "SPRITE_POKE_BALL",
+        spriteId = 84, type = 1, x = 28, y = 9,
+        itemball = { item = 27, quantity = 1 },
+      },
+    },
+  }
+end
+seedGoldRocketBase()
+
 local run = T.sdk.loadMod("mods/crystal_legacy_changes", {
   data = data,
   generation = 2,
@@ -2362,6 +2443,57 @@ T.eq(export.rebalance.rocketTower.texts, 15, "15 CL texts registered")
 T.eq(export.rebalance.rocketTower.movements, 16, "16 movement tables injected")
 T.eq(export.rebalance.rocketTower.objects, 3, "boss re-sprite + 2 GIOVANNI objects")
 T.eq(export.rebalance.rocketTower.scripts, 1, "1 boss scene script injected")
+
+-- Team Rocket Base (Phase 3d1): all 9 deltas + the executive sprite land.
+local rbB1F = data.gen2Maps.TEAM_ROCKET_BASE_B1F
+local rbB2F = data.gen2Maps.TEAM_ROCKET_BASE_B2F
+local rbB3F = data.gen2Maps.TEAM_ROCKET_BASE_B3F
+local function rbFind(map, x, y)
+  for _, obj in ipairs(map.objects) do
+    if obj.x == x and obj.y == y then return obj end
+  end
+  return nil
+end
+-- Delta 1: B1F (21,12) X_ACCURACY(33) -> GUARD_SPEC(41).
+local rbB1Ball = rbFind(rbB1F, 21, 12)
+T.check(rbB1Ball ~= nil, "B1F ball at (21,12) present")
+T.eq(rbB1Ball.itemball.item, 41, "B1F (21,12) is GUARD_SPEC (41)")
+-- Delta 2: B2F GruntM18 (2,1) sight 3 -> (4,1) sight 1.
+T.check(rbFind(rbB2F, 2, 1) == nil, "GruntM18 no longer at (2,1)")
+local rbGrunt = rbFind(rbB2F, 4, 1)
+T.check(rbGrunt ~= nil, "GruntM18 now at (4,1)")
+T.eq(rbGrunt.sight, 1, "GruntM18 sight tightened to 1")
+-- Deltas 3-5: B3F grunts/scientists moved.
+T.check(rbFind(rbB3F, 5, 15) == nil, "RaticateTailGrunt no longer at (5,15)")
+T.check(rbFind(rbB3F, 5, 14) ~= nil, "RaticateTailGrunt now at (5,14)")
+T.check(rbFind(rbB3F, 25, 12) == nil, "Ross no longer at (25,12)")
+local rbRoss = rbFind(rbB3F, 23, 11)
+T.check(rbRoss ~= nil, "Ross now at (23,11)")
+T.eq(rbRoss.sight, 0, "Ross no longer chases (sight 0)")
+T.check(rbFind(rbB3F, 14, 15) == nil, "Mitch no longer at (14,15)")
+local rbMitch = rbFind(rbB3F, 11, 15)
+T.check(rbMitch ~= nil, "Mitch now at (11,15)")
+T.eq(rbMitch.sight, 3, "Mitch keeps sight 3")
+-- Delta 11: exec at (8,3) re-sprited to SPRITE_ARCHER (real art ships).
+local rbExec = rbFind(rbB3F, 8, 3)
+T.check(rbExec ~= nil, "exec stays at (8,3)")
+T.eq(rbExec.sprite, "SPRITE_ARCHER", "exec wears ARCHER's sprite")
+-- Deltas 6-8: B3F itemball item swaps.
+T.eq(rbFind(rbB3F, 1, 12).itemball.item, 27, "B3F (1,12) is PROTEIN (27)")
+T.eq(rbFind(rbB3F, 3, 12).itemball.item, 53, "B3F (3,12) is X_SPECIAL (53)")
+T.eq(rbFind(rbB3F, 28, 9).itemball.item, 38, "B3F (28,9) is FULL_HEAL (38)")
+-- Delta 9: UltraBall appended at (14,10), flag 1934 free.
+local rbUltra = rbFind(rbB3F, 14, 10)
+T.check(rbUltra ~= nil, "UltraBall added at (14,10)")
+T.eq(rbUltra.itemball.item, 2, "appended ball holds ULTRA_BALL (2)")
+T.eq(rbUltra.eventFlag, 1934, "UltraBall keyed to free flag 1934")
+-- The UltraBall must not duplicate on re-fire (one-per-session guard).
+T.eq(#rbB3F.objects, 8, "re-fire is idempotent (no duplicate UltraBall)")
+-- Counts reported.
+T.eq(export.rebalance.rocketBase.items, 4, "4 itemball item repoints")
+T.eq(export.rebalance.rocketBase.objects, 4, "4 NPC moves")
+T.eq(export.rebalance.rocketBase.sprites, 1, "1 sprite swap (exec -> ARCHER)")
+T.eq(export.rebalance.rocketBase.added, 1, "1 appended object (UltraBall)")
 
 run.release()
 T.finish("crystal_legacy_changes")

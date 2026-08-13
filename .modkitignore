@@ -5,3 +5,4 @@ tools/converters/conv_encounters.py
 tools/converters/conv_trainers.py
 tools/converters/conv_marts.py
 tools/converters/conv_evolutions.py
+tools/inventory_ids.py

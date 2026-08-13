@@ -7,3 +7,5 @@ tools/converters/conv_marts.py
 tools/converters/conv_evolutions.py
 tools/converters/conv_move_tutor.py
 tools/inventory_ids.py
+# Phase 4b sprite converter (CL -> gold mode L) -- dev-side provenance, never shipped
+tools/convert_ow_sprites.py

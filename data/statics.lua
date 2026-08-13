@@ -37,4 +37,38 @@ statics.gameCorner = {
   },
 }
 
+-- ---------------------------------------------------------------------------
+-- Dragon's Den Dratini Master (post-Clair shrine gift).
+--
+-- CL's Elder at the Dragon Shrine (maps/DragonShrine.asm) hands the quiz
+-- winner an L15 DRATINI "as proof of worth" -- i.e. once Clair's RISING badge
+-- is held.  Gold's Dragon's Den B1F has no Elder object: the shrine tile
+-- (18,24) is a plain BGEVENT_READ whose script row "47:4586" is a single
+-- jumptext.  We replace that row with the mod command verb, badge-gated
+-- (RISING) and one-per-save (mod.save flag).  The gift is CL's "true master"
+-- moveset (engine/events/dratini.asm scriptVar 0): WRAP/THUNDER_WAVE/TWISTER/
+-- EXTREMESPEED -- PP values from Gold's moves.lua.
+-- ---------------------------------------------------------------------------
+statics.master = {
+  scriptKey = "47:4586", -- Dragon's Den B1F shrine read bgEvent
+  verb = "crystal_legacy_changes:dratini_master",
+  badge = "RISING",      -- Clair's badge (trainers.lua)
+  species = "DRATINI",
+  speciesIndex = 147,
+  level = 15,
+  moves = {
+    { id = "WRAP",         pp = 20, maxPp = 20 },
+    { id = "THUNDER_WAVE", pp = 20, maxPp = 20 },
+    { id = "TWISTER",      pp = 20, maxPp = 20 },
+    { id = "EXTREMESPEED", pp = 5,  maxPp = 5 },
+  },
+  -- CL DragonShrine.asm text in the port's encoding: \n line, \f page.
+  text = {
+    take_this = "Hm... Good to see\nyou here.\n\fYour arrival is\nmost fortunate.\n\fI have something\nfor you.\n\fTake this DRATINI\nas proof that I\n\fhave recognized\nyour worth.",
+    received = "{PLAYER} received\nDRATINI!",
+    party_full = "Hm? Your party\nis full.",
+    symbolic = "Dragon Pokémon are\nsymbolic of our\nclan.\n\fYou have shown\nthat you can be\n\fentrusted with\none.",
+  },
+}
+
 return statics

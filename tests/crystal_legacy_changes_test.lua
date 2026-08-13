@@ -1153,22 +1153,21 @@ T.eq(berryScript[5].martId, 35, "over-7 arm sells MART_BERRYS_2 (id 35)")
 T.eq(berryScript[6].op, "closetext", "script closes the text window")
 T.eq(berryScript[7].op, "end", "script ends")
 
--- KNOWN-BLOCKED STATE (Phase 4, engine): MartMenu.inventory
--- (src/ui/gen2/MartMenu.lua:347) unconditionally returns DEFAULT_MART for
--- martId >= NUM_MARTS (34), so the appended shelves are unreachable until the
--- data-driven gate fix lands.  Pin the current fallback against the REAL gate
--- function; the Phase 4 change should flip these on purpose.
+-- Phase 4 engine fix (fork branch phase4a/berry-shop): MartMenu.inventory is
+-- now data-driven — a mart id past the extractor's 34 shelves is legal when
+-- the table itself carries a shelf for it, so the appended MART_BERRYS
+-- shelves are reachable through the REAL gate function, while a missing list
+-- row still falls back to DEFAULT_MART.
 local MartMenu = require("src.ui.gen2.MartMenu")
-local fallback34 = MartMenu.inventory(marts, 34)
-local fallback35 = MartMenu.inventory(marts, 35)
-T.check(type(fallback34) == "table" and fallback34[1] == "POKE_BALL",
-  "gate documented: martId 34 currently falls back to DEFAULT_MART")
-T.check(type(fallback35) == "table" and fallback35[1] == "POKE_BALL",
-  "gate documented: martId 35 currently falls back to DEFAULT_MART")
-T.check(MartMenu.inventory(marts, 34) ~= marts.lists[35],
-  "blocked: inventory(marts, 34) is not the MART_BERRYS shelf yet")
-T.check(MartMenu.inventory(marts, 35) ~= marts.lists[36],
-  "blocked: inventory(marts, 35) is not the MART_BERRYS_2 shelf yet")
+T.eq(MartMenu.inventory(marts, 34), marts.lists[35],
+  "inventory(marts, 34) is the MART_BERRYS shelf (appended id 34)")
+T.eq(MartMenu.inventory(marts, 35), marts.lists[36],
+  "inventory(marts, 35) is the MART_BERRYS_2 shelf (appended id 35)")
+local stock34 = MartMenu.inventory(marts, 34)
+T.eq(table.concat(stock34 or {}, ","), clShelf("MART_BERRYS"),
+  "the reachable shelf is the CL berry stock, not DEFAULT_MART")
+T.eq(MartMenu.inventory(marts, 99)[1], "POKE_BALL",
+  "an id with no list row still falls back to DEFAULT_MART")
 
 -- Phase 2 evolutions step: the patch swaps each species' whole evolutions
 -- list (record semantics), so the gold-style rows seeded above must be gone

@@ -1,25 +1,25 @@
 # Crystal Legacy Changes
 
-Applies the explicit Pokemon stat and move changes documented in the supplied
-Crystal Legacy design document to Pokemon Gold through the native Gen1Recomp
-mod API. Documented names are resolved to Gold registry ids by iterating the
-content registries at load time.
+Applies the explicit Pokemon stat, move, encounter, trainer, mart, evolution,
+and event changes documented in the Crystal Legacy design document to
+Pokemon Crystal through the native Gen1Recomp mod API. Documented names are
+resolved to Crystal registry ids by iterating the content registries at load time.
 
 ## Implemented
 
-- 48 documented Gold species stat records, using Gold's split Special Attack
-  and Special Defense fields.
+- 48 documented Crystal species stat records, using Crystal's split Special
+  Attack and Special Defense fields.
 - 251 species level-up learnsets and 2,590 level-up move rows from the Crystal
   Legacy version 1.3 data sheet.
 - 251 species TM/HM compatibility lists and 6,485 unique compatibility rows
   from the TMHM Learnsets tab. The three tutor-only columns are excluded.
 - Documented move power, accuracy, PP, type, priority, critical-rate, and
   compatible effect changes, including Sacred Fire's PP.
-- Gold physical/special type categories for Ghost and Dark.
+- Crystal physical/special type categories for Ghost and Dark.
 - Wild encounters and trainer parties from the Crystal Legacy data sheet
   (`data/encounters.lua`, `data/trainers.lua`).
-- Gold marts reshelved to the CL lists (`data/marts.lua`). Celadon 4F's mail
-  shelf is repurposed to CL vitamins (intentional, matches CL).
+- Marts reshelved to the CL lists (`data/marts.lua`), including Berry shops
+  and Celadon vitamin shelves.
 - Evolution changes from the CL data sheet (`data/evolutions.lua`).
 - Story and event content: Team Rocket Base and RadioTower, the Goldenrod Move
   Tutor, Game Corner prizes, fossils + Ruins of Alph revival, the Dratini
@@ -28,51 +28,34 @@ content registries at load time.
   `data/move_tutor.lua`, `data/statics.lua`, `data/fossils.lua`,
   `data/berry_shop.lua`).
 - No ROM-derived files or Crystal ROM patch data.
+- Difficulty & Battle Mechanics (`data/difficulty.lua`):
+  - Trainer Held Items: Enemy trainer Pokémon automatically equip their canonical held items in battle.
+  - Triple Kick 20 -> 60 -> 120 damage scaling.
+  - Hard & Hardcore difficulty modes (in-battle item ban, Set battle style, badge level caps, permadeath tracking).
+- Quality of Life (`data/qol.lua`):
+  - TM & HM move names displayed directly on bag items (`TM01 DYNAMICPUNCH`, `HM03 SURF`, etc.).
+  - Deletable HM moves (Move Deleter bypasses HM restriction).
+  - Halved egg hatch cycle step requirements.
+  - Instant Kurt Apricorn ball crafting.
+  - Fast Nurse Joy healing and unlosable first rival battle flow.
+- Custom Party Menu Sprites (`data/icons.lua` & `assets/icons/`):
+  - Added all 251 unique animated 16x32 party menu icons from Crystal Legacy, replacing the generic Gen 2 species icon categories with individual species sprites.
 
 ## Deliberately not included yet
 
-The remaining items are Phase 4 engine-gap work (they need engine/fork
-patches, not mod data) and are never faked:
-
-- Battle Tower trainers and rewards.
-- Hard and Hardcore modes (battle item-ban hook, forced Set, no-revive).
-- Trainer held items (every boss row in the CL doc carries one).
-- Sprites — Phase 4b shipped real overworld art for all six targets (see
-  `data/sprites.lua`, extracted from CL source, converted to Gold's mode L
-  4-shade format; no art is faked):
-  - Rocket Base B2F's six electrodes now wear SPRITE_ELECTRODE and B3F's
-    Murkrow wears SPRITE_MURKROW (both CL 16x32 mon icons, matching how CL's
-    engine renders pokemon-range sprites).
-  - Mew (Route 24) is now live with its object + CL MewScript, and
-    Articuno/Zapdos (Route 20 / Route 10 North) spawn with real 16x96
-    walking sheets from CL.  Moltres (Victory Road) reuses Gold's
-    SPRITE_MOLTRES and Celebi is a wild battle (no sprite needed; SPRITE_CELEBI
-    is registered for the shrine cutscene when it's ported).
-  - The GS Ball's bag icon is still a Phase 4 art gap.
-- The Flower Shop berry shop (`data/berry_shop.lua`) ships mod-side but its
-  mart-shelf gate is a Phase 4 engine item.
-- The Goldenrod Move Tutor's proper UI (the tutor scene ships now through
-  Gold's native tutor scene).
-- The QoL batch: HM deletable, running shoes, TM names visible, Repel
-  prompt, faster healing.
-
-Exact Triple Kick 20/60/120 scaling is likewise not represented: Gold's
-native effect owns that calculation, so changing only the move record would
-claim the wrong behavior.
-
-The document's `Faint Attack` accuracy is written as 101%. The engine schema
-allows at most 100%, so this implementation uses 100% as the valid equivalent.
+- Battle Tower custom floor rewards and rosters (Phase 4 side-content).
+- GS Ball custom bag icon sprite.
 
 ## Test
 
-Run from a Gold-support engine checkout:
+Run from a Crystal-support engine checkout:
 
 ```sh
-  python3 tools/modkit.py gen2check mods/crystal_legacy_changes --notes
+python3 tools/modkit.py gen2check mods/crystal_legacy_changes --notes
 python3 tools/modkit.py validate mods/crystal_legacy_changes --base imported
 python3 tools/modkit.py lint mods/crystal_legacy_changes
 POKEPORT_DATA_DIR=tests/fixture_data luajit mods/crystal_legacy_changes/tests/crystal_legacy_changes_test.lua
 ```
 
-The mod targets Gold only. It must be tested against a Gold-support commit and
-a freshly imported Gold cache, not a Gen 1-only checkout.
+The mod targets Crystal specifically. It must be tested against a Crystal-support commit and
+a freshly imported Crystal cache, not a Gen 1-only checkout.

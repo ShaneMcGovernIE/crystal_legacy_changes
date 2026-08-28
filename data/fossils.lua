@@ -82,7 +82,8 @@ return {
   -- The revival scientist (top-right of the Research Center).
   scientist = {
     mapId = "RUINS_OF_ALPH_RESEARCH_CENTER",
-    scriptKey = "44:4ac6",
+    scriptKey = "16:5214",
+    scriptKeys = { "16:5214", "44:4ac6" },
     -- Dome -> Kabuto L15 (after Gym 3), Helix -> Omanyte L20 (after Gym 4),
     -- Old Amber -> Aerodactyl L25 (after Gym 7).  The per-mon level is fixed
     -- per the Crystal Legacy spec; the gym gates the FOSSIL's obtainability
@@ -105,8 +106,10 @@ return {
   chambers = {
     {
       id = "KABUTO",
-      solvedScript = "44:44ea",
-      callbackScript = "44:44ce",
+      solvedScript = "16:4778",
+      callbackScript = "16:4737",
+      solvedScripts = { "16:4778", "44:44ea" },
+      callbackScripts = { "16:4737", "44:44ce" },
       solvedEvent = 673,
       badge = "PLAIN",            -- Gym 3 (engine flag 28)
       itemId = "DOME_FOSSIL",
@@ -114,8 +117,10 @@ return {
     },
     {
       id = "OMANYTE",
-      solvedScript = "44:4692",
-      callbackScript = "44:4676",
+      solvedScript = "16:4c36",
+      callbackScript = "16:4bf8",
+      solvedScripts = { "16:4c36", "44:4692" },
+      callbackScripts = { "16:4bf8", "44:4676" },
       solvedEvent = 674,
       badge = "FOG",              -- Gym 4 (engine flag 29)
       itemId = "HELIX_FOSSIL",
@@ -123,8 +128,10 @@ return {
     },
     {
       id = "AERODACTYL",
-      solvedScript = "44:476c",
-      callbackScript = "44:4750",
+      solvedScript = "16:4df7",
+      callbackScript = "16:4db9",
+      solvedScripts = { "16:4df7", "44:476c" },
+      callbackScripts = { "16:4db9", "44:4750" },
       solvedEvent = 675,
       badge = "GLACIER",          -- Gym 7 (engine flag 32)
       itemId = "OLD_AMBER",
@@ -137,12 +144,12 @@ return {
   -- routed on Gen 2) and the commands show them via Vm:showText, which blocks
   -- until the A press -- the ordinary writetext/waitbutton run.
   text = {
-    revive_greet = "I study the Fossil Revival\nmachine! Hand me a Fossil\nand I'll revive it!",
-    revive_none = "You don't have any\nFossils... Come back\nwhen you have one!",
-    revive_party_full = "Oh! Your party is full!\nYou have no room for\nanother Pokémon.",
-    revive_kabuto = "Dome Fossil! It's the\nbody of a KABUTO!\nI'll revive it now!",
-    revive_omanyte = "Helix Fossil! It's the\nbody of an OMANYTE!\nI'll revive it now!",
-    revive_aerodactyl = "Old Amber! It's the\nbody of an AERODACTYL!\nI'll revive it now!",
+    revive_greet = "I study the Fossil\nRevival machine!\fHand me a Fossil and\nI'll revive it!",
+    revive_none = "You don't have any\nFossils with you.\fCome back when you\nfind one!",
+    revive_party_full = "Your party is full!\fMake room in your\nparty and return!",
+    revive_kabuto = "A Dome Fossil!\nIt's a KABUTO!\fI'll revive it now!",
+    revive_omanyte = "A Helix Fossil!\nIt's an OMANYTE!\fI'll revive it now!",
+    revive_aerodactyl = "An Old Amber!\nIt's an AERODACTYL!\fI'll revive it now!",
     got_kabuto = "{PLAYER} received\nKABUTO!",
     got_omanyte = "{PLAYER} received\nOMANYTE!",
     got_aerodactyl = "{PLAYER} received\nAERODACTYL!",

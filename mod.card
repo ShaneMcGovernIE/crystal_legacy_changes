@@ -1,0 +1,36 @@
+return {
+  summary = "Crystal Legacy (TSP) Crystal data, story, event, difficulty, and quality-of-life changes.",
+  author = "Pokemon Gen 1 Recompilation Project",
+  contact = "https://github.com/bryanthaboi/gen1recomp",
+  tags = { "balance", "crystal", "data" },
+  differences = {
+    changed = {
+      "48 Crystal species receive Crystal Legacy base-stat values",
+      "251 species receive the Crystal Legacy version 1.3 level-up learnsets",
+      "251 species receive canonical TM01-TM50 and HM01-HM07 compatibility lists",
+      "Documented move power, accuracy, PP, type, priority, and compatible effect changes, including Sacred Fire's PP",
+      "Ghost is Special and Dark is Physical through the Crystal type registry",
+      "Crystal Legacy wild encounters, trainer parties, marts, evolutions, story events, and gifts",
+      "Hard and Hardcore difficulty modes plus Crystal Legacy quality-of-life changes",
+    },
+    known = {
+      "Battle Tower custom floor rewards and rosters are not included",
+      "The GS Ball custom bag icon sprite is not included",
+    },
+  },
+  credits = {
+    { who = "TheSmithPlays (TSP)", for_ = "the Crystal Legacy design document" },
+    { who = "cRz-Shadows", for_ = "Crystal Legacy development" },
+    { who = "Katt", for_ = "Pokemon overworld sprites" },
+    { who = "Karlos", for_ = "Pokemon overworld sprites" },
+    { who = "Chamber", for_ = "Pokemon party sprites" },
+    { who = "Soloo993", for_ = "Pokemon party sprites" },
+    { who = "Blue Emerald", for_ = "Pokemon party sprites" },
+    { who = "Lake", for_ = "Pokemon party sprites" },
+    { who = "Neslug", for_ = "Pokemon party sprites" },
+    { who = "Pikachu25", for_ = "Pokemon party sprites" },
+    { who = "Tom Wang", for_ = "Pokemon party sprites" },
+    { who = "Seasick", for_ = "Pokemon party sprites" },
+  },
+  compat = { engine = ">=0.0.0-0 <2.0.0", modApi = 2 },
+}

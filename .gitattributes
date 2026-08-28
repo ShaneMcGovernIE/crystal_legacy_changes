@@ -1,0 +1,5 @@
+# Files excluded from the release archive (git archive export-ignore).
+# Keeps the shipped zip free of dev/test content; .modkitignore already keeps
+# these out of modkit pack output.
+tests/ export-ignore
+tools/ export-ignore

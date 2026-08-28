@@ -1,0 +1,11 @@
+tests/crystal_legacy_changes_test.lua
+
+# dev-side data converters -- NEVER shipped (Phase 1 tooling)
+tools/converters/conv_encounters.py
+tools/converters/conv_trainers.py
+tools/converters/conv_marts.py
+tools/converters/conv_evolutions.py
+tools/converters/conv_move_tutor.py
+tools/inventory_ids.py
+# Phase 4b sprite converter (CL -> gold mode L) -- dev-side provenance, never shipped
+tools/convert_ow_sprites.py

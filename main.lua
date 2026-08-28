@@ -1,5 +1,5 @@
 -- Crystal Legacy's explicit stat and move values, resolved against the
--- player's imported Gold dataset so the mod ships no ROM-derived ids.
+-- player's imported Crystal dataset so the mod ships no ROM-derived ids.
 
 local function normalize(value)
   return tostring(value):gsub("[^%w]", ""):upper()
@@ -42,7 +42,7 @@ local function applyRebalance(mod, data)
     effects = 0,
   }
 
-  -- Gold's battle loop handles these effects directly from the move id, but
+  -- Crystal's battle loop handles these effects directly from the move id, but
   -- the registry still needs a record so a patched move's reference validates.
   for id in pairs({
     EFFECT_NORMAL_HIT = true,
@@ -80,11 +80,11 @@ local function applyRebalance(mod, data)
   end
 
   if counts.unknownMoves > 0 then
-    mod.log:warn("%d documented move names were not present in the Gold cache",
+    mod.log:warn("%d documented move names were not present in the Crystal cache",
       counts.unknownMoves)
   end
   if counts.unknownSpecies > 0 then
-    mod.log:warn("%d documented species names were not present in the Gold cache",
+    mod.log:warn("%d documented species names were not present in the Crystal cache",
       counts.unknownSpecies)
   end
 
@@ -133,6 +133,60 @@ local function applyEvolutions(mod, data, counts)
     mod.content.pokemon:patch(id, { evolutions = rows })
     counts.evolutions = counts.evolutions + 1
   end
+
+  local evoItems = {
+    "METAL_COAT",
+    "KINGS_ROCK",
+    "UP_GRADE",
+    "DRAGON_SCALE",
+    "BRICK_PIECE",
+  }
+
+  local function makeEvoUseFn()
+    return function(ctx)
+      if ctx.mon and ctx.mon.item == "EVERSTONE" then
+        return { used = false, text = "It won't have any\neffect." }
+      end
+      local Evolution = require("src.core.gen2.Evolution")
+      local entry = Evolution.checkMon(ctx.data, ctx.mon,
+        { force = true, item = ctx.item })
+      if not entry then return { used = false, text = "It won't have any\neffect." } end
+      return { used = true, evolution = entry }
+    end
+  end
+
+  for _, itemId in ipairs(evoItems) do
+    mod.content.items:patch(itemId, {
+      fieldMenu = "ITEMMENU_PARTY",
+    })
+    mod.content.item_effects:register(itemId, {
+      field = true,
+      needsTarget = true,
+      use = makeEvoUseFn(),
+    })
+  end
+
+  mod.events:on("mods.loaded", function(payload)
+    local target = payload and payload.data
+    if not target then return end
+    if target.gen2ItemEffects then
+      for _, itemId in ipairs(evoItems) do
+        target.gen2ItemEffects[itemId] = {
+          action = "stone",
+          field = true,
+          needsTarget = true,
+          use = makeEvoUseFn(),
+        }
+      end
+    end
+    if target.items then
+      for _, itemId in ipairs(evoItems) do
+        if target.items[itemId] then
+          target.items[itemId].fieldMenu = "ITEMMENU_PARTY"
+        end
+      end
+    end
+  end)
 end
 
 -- Encounters: Gold hangs every table of encounter rows off one registry per
@@ -179,18 +233,13 @@ local function applyTrainers(mod, data)
   return count
 end
 
--- Marts: Gold has no marts content registry.  The engine seeds
--- game.data.gen2Marts = { bargain = ..., lists = {34 gold-positional
--- shelves} } (Game2.lua) before mods load, and World/MartMenu read that
--- table by reference afterwards.  The real seam is the mods.loaded event,
+-- Marts: In Gen 2, the engine seeds game.data.gen2Marts = { bargain = ...,
+-- lists = {shelves} } (Game2.lua) before mods load, and World/MartMenu read
+-- that table by reference afterwards. The seam is the mods.loaded event,
 -- fired at the end of Loader:load with { loader, data } where data is
--- game.data in-game (opts.data under the SDK).  We swap the 34 shelves in
--- place with the Crystal Legacy stock, preserving bargain.  GOLD_MART_ORDER
--- is the gold engine's 34-slot order (constants/mart_constants.asm, verified
--- against the gold cache); the 5 CL-only marts (BERRYS, BERRYS_2,
--- CELADON_3F_2, CELADON_5F_1_2, CELADON_5F_2_2) have no gold slot
--- (NUM_MARTS = 34) and are unreachable in this engine.
-local GOLD_MART_ORDER = {
+-- game.data in-game (opts.data under the SDK). We swap the shelves in place
+-- with the Crystal Legacy stock, preserving bargain.
+local MART_ORDER = {
   "MART_CHERRYGROVE", "MART_CHERRYGROVE_DEX", "MART_VIOLET", "MART_AZALEA",
   "MART_CIANWOOD", "MART_GOLDENROD_2F_1", "MART_GOLDENROD_2F_2",
   "MART_GOLDENROD_3F", "MART_GOLDENROD_4F", "MART_GOLDENROD_5F_1",
@@ -201,6 +250,8 @@ local GOLD_MART_ORDER = {
   "MART_CELADON_2F_2", "MART_CELADON_3F", "MART_CELADON_4F",
   "MART_CELADON_5F_1", "MART_CELADON_5F_2", "MART_FUCHSIA",
   "MART_SAFFRON", "MART_MT_MOON", "MART_INDIGO_PLATEAU", "MART_UNDERGROUND",
+  "MART_BERRYS", "MART_BERRYS_2", "MART_CELADON_3F_2", "MART_CELADON_5F_1_2",
+  "MART_CELADON_5F_2_2",
 }
 
 local function applyMarts(mod, data, counts)
@@ -220,7 +271,7 @@ local function applyMarts(mod, data, counts)
       lists = {}
       marts.lists = lists
     end
-    for i, id in ipairs(GOLD_MART_ORDER) do
+    for i, id in ipairs(MART_ORDER) do
       local stock = data.marts[id]
       if stock then
         lists[i] = stock
@@ -229,8 +280,8 @@ local function applyMarts(mod, data, counts)
     end
     for id in pairs(data.marts or {}) do
       local found = false
-      for _, gold in ipairs(GOLD_MART_ORDER) do
-        if gold == id then found = true break end
+      for _, shelf in ipairs(MART_ORDER) do
+        if shelf == id then found = true break end
       end
       if not found then counts.clOnly = counts.clOnly + 1 end
     end
@@ -732,6 +783,51 @@ local function applyStatics(mod, data, counts)
         counts.statics = counts.statics + 1
       end
     end
+
+    -- Mt. Mortar: Karate King Kiyo (Tyrogue Lv 10)
+    -- Relocate Kiyo from deep B1F (Waterfall) to 1F Outside (11, 15) accessible around Gym 4 without Waterfall.
+    local kiyo = data.kiyo
+    if type(kiyo) == "table" and type(maps) == "table" then
+      local dest = maps[kiyo.destMap]
+      if type(dest) == "table" and type(dest.objects) == "table" then
+        local alreadyAdded = false
+        for _, obj in ipairs(dest.objects) do
+          if obj.x == kiyo.coords.x and obj.y == kiyo.coords.y and obj.sprite == kiyo.sprite then
+            alreadyAdded = true
+            break
+          end
+        end
+        if not alreadyAdded then
+          table.insert(dest.objects, {
+            eventFlag = 65535,
+            hours = { -1, -1 },
+            index = #dest.objects + 1,
+            movement = kiyo.movement or 7,
+            palette = 1,
+            radius = { x = 0, y = 0 },
+            script = 0,
+            scriptKey = kiyo.scriptKey,
+            sight = 0,
+            sprite = kiyo.sprite,
+            spriteId = 65,
+            type = 0,
+            x = kiyo.coords.x,
+            y = kiyo.coords.y,
+          })
+          counts.statics = counts.statics + 1
+        end
+      end
+      local src = maps[kiyo.sourceMap]
+      if type(src) == "table" and type(src.objects) == "table" then
+        for i = #src.objects, 1, -1 do
+          local obj = src.objects[i]
+          if obj.sprite == kiyo.sprite and (obj.x == 16 or obj.scriptKey == kiyo.scriptKey) then
+            table.remove(src.objects, i)
+            break
+          end
+        end
+      end
+    end
   end)
 end
 
@@ -774,8 +870,23 @@ local function applyFossils(mod, data, counts)
   end
 
   local function hasBadge(save, name)
-    local badges = save and save.player and save.player.badges
-    return type(badges) == "table" and badges[name] == true
+    if not save then return false end
+    local player = save.player or {}
+    local badges = player.badges or player.johtoBadges or {}
+    if type(badges) == "table" and (badges[name] == true or badges[name:upper()] == true) then
+      return true
+    end
+    local johtoOrder = { "ZEPHYR", "HIVE", "PLAIN", "FOG", "MINERAL", "STORM", "GLACIER", "RISING" }
+    for idx, bname in ipairs(johtoOrder) do
+      if bname == name then
+        if badges[idx] == true then return true end
+        local engineFlags = save.engineFlags or {}
+        if engineFlags[25 + idx] == true or engineFlags["ENGINE_" .. bname .. "BADGE"] == true then
+          return true
+        end
+      end
+    end
+    return false
   end
 
   -- The scientist's revival flow.  Party-full is checked BEFORE the fossil is
@@ -789,9 +900,23 @@ local function applyFossils(mod, data, counts)
     local revive = data.scientist and data.scientist.revive
     if not revive then return end
     vm:showText("crystal_legacy_changes:revive_greet")
+    local save = saveOf()
+    local inventory = save and save.inventory or {}
+    local bag = save and save.bag or {}
     local found
     for _, entry in ipairs(revive) do
-      local has = vm.hasItemFn and vm.hasItemFn(entry.itemIndex)
+      local has = false
+      if vm.hasItemFn then
+        has = vm.hasItemFn(entry.itemIndex) or vm.hasItemFn(entry.itemId)
+      end
+      if not has and type(inventory) == "table" then
+        has = (inventory[entry.itemId] and inventory[entry.itemId] > 0)
+          or (inventory[entry.itemIndex] and inventory[entry.itemIndex] > 0)
+      end
+      if not has and type(bag) == "table" then
+        has = (bag[entry.itemId] and bag[entry.itemId] > 0)
+          or (bag[entry.itemIndex] and bag[entry.itemIndex] > 0)
+      end
       if has then
         found = entry
         break
@@ -801,7 +926,6 @@ local function applyFossils(mod, data, counts)
       vm:showText("crystal_legacy_changes:revive_none")
       return
     end
-    local save = saveOf()
     if save and type(save.party) == "table" and #save.party >= 6 then
       vm:showText("crystal_legacy_changes:revive_party_full")
       return
@@ -873,39 +997,50 @@ local function applyFossils(mod, data, counts)
     -- rows were flavor text only (no checkitem/takeitem/givepoke anywhere
     -- reachable on Gold), so the whole list is replaced.
     local scientist = data.scientist
-    if type(scientist) == "table" and type(scientist.scriptKey) == "string" then
-      scripts[scientist.scriptKey] = {
-        { op = "faceplayer" },
-        { op = "opentext" },
-        { "crystal_legacy_changes:revive_fossil" },
-        { op = "waitbutton" },
-        { op = "closetext" },
-        { op = "end" },
-      }
-      counts.fossils.scripts = counts.fossils.scripts + 1
+    if type(scientist) == "table" then
+      local keys = scientist.scriptKeys or { scientist.scriptKey }
+      for _, key in ipairs(keys) do
+        if key then
+          scripts[key] = {
+            { op = "faceplayer" },
+            { op = "opentext" },
+            { "crystal_legacy_changes:revive_fossil" },
+            { op = "waitbutton" },
+            { op = "closetext" },
+            { op = "end" },
+          }
+          counts.fossils.scripts = counts.fossils.scripts + 1
+        end
+      end
     end
 
     -- Chamber solved sequences carry the reward arm right after their event
     -- flags (so the solve state is already committed); the MAPCALLBACK_TILES
     -- scripts carry the deferred-claim arm first.
     for _, ch in ipairs(data.chambers or {}) do
-      local solved = scripts[ch.solvedScript]
-      if type(solved) == "table" then
-        local lastFlag
-        for i, step in ipairs(solved) do
-          if type(step) == "table" and (step.op == "setevent" or step.op == "setflag") then
-            lastFlag = i
+      local solvedList = ch.solvedScripts or { ch.solvedScript }
+      for _, sKey in ipairs(solvedList) do
+        local solved = scripts[sKey]
+        if type(solved) == "table" then
+          local lastFlag
+          for i, step in ipairs(solved) do
+            if type(step) == "table" and (step.op == "setevent" or step.op == "setflag") then
+              lastFlag = i
+            end
+          end
+          if lastFlag then
+            table.insert(solved, lastFlag + 1, { "crystal_legacy_changes:ruins_reward", ch.id })
+            counts.fossils.scripts = counts.fossils.scripts + 1
           end
         end
-        if lastFlag then
-          table.insert(solved, lastFlag + 1, { "crystal_legacy_changes:ruins_reward", ch.id })
+      end
+      local callbackList = ch.callbackScripts or { ch.callbackScript }
+      for _, cKey in ipairs(callbackList) do
+        local callback = scripts[cKey]
+        if type(callback) == "table" then
+          table.insert(callback, 1, { "crystal_legacy_changes:ruins_deferred", ch.id })
           counts.fossils.scripts = counts.fossils.scripts + 1
         end
-      end
-      local callback = scripts[ch.callbackScript]
-      if type(callback) == "table" then
-        table.insert(callback, 1, { "crystal_legacy_changes:ruins_deferred", ch.id })
-        counts.fossils.scripts = counts.fossils.scripts + 1
       end
     end
   end)
@@ -1348,6 +1483,154 @@ local function applyMoveTutor(mod, data, counts, tutorMoves)
   return counts
 end
 
+local function applyIcons(mod, data, counts)
+  if not data then return end
+  local sheets = data.sheets or {}
+  local species = data.species or {}
+  for sheetId, def in pairs(sheets) do
+    mod.content.icons:override(sheetId, {
+      image = def.image,
+      width = def.width or 16,
+      height = def.height or 32,
+      frames = def.frames or 2,
+    })
+  end
+  for specId, sheetId in pairs(species) do
+    mod.content.icons:override(specId, sheetId)
+  end
+
+  mod.hooks:wrap("pokemon.icon", function(next, vanillaPath, ctx)
+    local mon = ctx and ctx.mon
+    if mon and mon.isEgg then
+      return next(vanillaPath, ctx)
+    end
+    local spec = (mon and mon.species) or (ctx and ctx.species)
+    if spec then
+      local iconConst = species[spec]
+      local sheet = iconConst and sheets[iconConst]
+      if sheet and sheet.image then
+        if mon and mon.shiny then
+          local shinyPath = sheet.image:gsub("/gen2/", "/gen2/shiny/")
+          return shinyPath
+        end
+        return sheet.image
+      end
+    end
+    return next(vanillaPath, ctx)
+  end, 50)
+
+  local function installPartyMenuPatch()
+    pcall(function()
+      local Gen2PartyMenu = require("src.ui.gen2.PartyMenu")
+      local GbcPalette = require("src.render.GbcPalette")
+
+      Gen2PartyMenu.drawIcon = function(self, mon, px, py)
+        if not mon then return end
+        local image, frame = self:iconFor(mon)
+        if not image then return end
+        local G = love.graphics
+        local iw, ih = image:getDimensions()
+        local markerRow = Gen2PartyMenu.heldMarkerRow(mon)
+        local marker = markerRow and self:heldMarkerImage() or nil
+        local paint
+        if marker then
+          local mw, mh = marker:getDimensions()
+          local topLeft = G.newQuad(0, frame * 16, 8, 8, iw, ih)
+          local topRight = G.newQuad(8, frame * 16, 8, 8, iw, ih)
+          local bottomRight = G.newQuad(8, frame * 16 + 8, 8, 8, iw, ih)
+          local held = G.newQuad(0, markerRow * 8, 8, 8, mw, mh)
+          paint = function()
+            G.draw(image, topLeft, px, py)
+            G.draw(image, topRight, px + 8, py)
+            G.draw(image, bottomRight, px + 8, py + 8)
+            G.draw(marker, held, px, py + 8)
+          end
+        else
+          local quad = G.newQuad(0, frame * 16, 16, 16, iw, ih)
+          paint = function() G.draw(image, quad, px, py) end
+        end
+        G.setColor(1, 1, 1, 1)
+
+        if mon.isEgg then
+          local pals = self.palettes and self.palettes.partyMenu
+          local colors = pals and (pals[2] or pals[1])
+          if colors and GbcPalette.available() then
+            GbcPalette.with(colors, paint)
+          else
+            paint()
+          end
+        elseif GbcPalette.mode == "dmg" or GbcPalette.mode == "classic" then
+          local pals = self.palettes and self.palettes.partyMenu
+          local colors = pals and pals[1]
+          if colors and GbcPalette.available() then
+            GbcPalette.with(colors, paint)
+          else
+            paint()
+          end
+        else
+          -- Authentic full-color Crystal Legacy icons
+          local prev = G.getShader and G.getShader()
+          if prev then G.setShader(nil) end
+          paint()
+          if prev then G.setShader(prev) end
+        end
+      end
+    end)
+  end
+
+  installPartyMenuPatch()
+
+  mod.events:on("mods.loaded", function(payload)
+    local target = payload and payload.data
+    if not target then return end
+    local gen2Icons = target.gen2Icons
+    if type(gen2Icons) == "table" then
+      gen2Icons.icons = gen2Icons.icons or {}
+      gen2Icons.species = gen2Icons.species or {}
+      for sheetId, def in pairs(sheets) do
+        gen2Icons.icons[sheetId] = {
+          id = sheetId,
+          image = def.image,
+          width = def.width or 16,
+          height = def.height or 32,
+          frames = def.frames or 2,
+        }
+      end
+      for specId, sheetId in pairs(species) do
+        gen2Icons.species[specId] = sheetId
+      end
+    end
+
+    installPartyMenuPatch()
+  end)
+
+  local function installSummaryMenuPatch()
+    pcall(function()
+      local Gen2SummaryMenu = require("src.ui.gen2.SummaryMenu")
+      local Chrome = require("src.ui.gen2.Chrome")
+
+      Gen2SummaryMenu.drawPlacements = function(self, list, palette)
+        for _, entry in ipairs(list or {}) do
+          local pal = palette
+          if not pal and entry.y and entry.y >= 8 and self.lowerColors then
+            pal = self:lowerColors()
+          end
+          if pal then
+            Chrome.printThrough(entry.text, entry.x, entry.y, pal)
+          else
+            Chrome.print(entry.text, entry.x, entry.y)
+          end
+        end
+      end
+    end)
+  end
+
+  installSummaryMenuPatch()
+  mod.events:on("mods.loaded", installSummaryMenuPatch)
+
+  if counts then counts.icons = 251 end
+end
+
 return function(mod)
   local counts = applyRebalance(mod, loadSibling(mod, "rebalance.lua"))
   counts.learnsets = applyLearnsets(mod, loadSibling(mod, "learnsets.lua"))
@@ -1369,5 +1652,21 @@ return function(mod)
   applyRocketBase(mod, loadSibling(mod, "data/rocket_base.lua"), counts)
   applyMoveTutor(mod, loadSibling(mod, "data/move_tutor.lua"), counts,
     loadSibling(mod, "data/tutor_moves.lua"))
+  applyIcons(mod, loadSibling(mod, "data/icons.lua"), counts)
+  local difficulty = loadSibling(mod, "data/difficulty.lua")
+  if difficulty and difficulty.applyDifficulty then
+    difficulty.applyDifficulty(mod, loadSibling(mod, "data/trainers.lua"))
+    counts.difficulty = true
+  end
+  local events = loadSibling(mod, "data/events.lua")
+  if events and events.applyEvents then
+    events.applyEvents(mod)
+    counts.events = true
+  end
+  local qol = loadSibling(mod, "data/qol.lua")
+  if qol and qol.applyQoL then
+    qol.applyQoL(mod)
+    counts.qol = true
+  end
   mod.exports.rebalance = counts
 end

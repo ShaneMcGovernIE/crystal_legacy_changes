@@ -1,19 +1,17 @@
 {
   "id": "crystal_legacy_changes",
   "name": "Crystal Legacy Changes",
-  "version": "1.3.8",
+  "version": "1.3.10",
   "api": 2,
   "entry": "main.lua",
   "profile": "overhaul",
-  "category": "BALANCE",
+  "author": "Shane McGovern",
+  "description": "Comprehensive Crystal Legacy changes for Pokemon Crystal: stat rebalancing, modified learnsets, updated TM/HM compatibility, enhanced trainer rosters, revised wild encounters, gym leader level scaling, difficulty modes, and authentic full-color party menu icons.",
   "games": [
     "crystal"
   ],
-  "description": "Native Crystal reimplementation of the Crystal Legacy stat, move, encounter, trainer, mart, evolution, and event changes from TSP's design document.",
-  "permissions": [
-    "engine_internals"
-  ],
   "dependencies": [],
   "optional_dependencies": [],
-  "conflicts": []
+  "conflicts": [],
+  "github": "ShaneMcGovernIE/crystal_legacy_changes"
 }

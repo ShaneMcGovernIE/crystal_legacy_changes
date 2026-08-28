@@ -42,13 +42,42 @@ local function applyRebalance(mod, data)
     effects = 0,
   }
 
-  -- Crystal's battle loop handles these effects directly from the move id, but
-  -- the registry still needs a record so a patched move's reference validates.
+  -- Keep these as empty `full` records: the Gen 2 battle module owns their
+  -- behavior in its damage pipeline, while the content schema still requires
+  -- every move.effect reference to resolve through move_effects.  Some engine
+  -- builds seed only the handler-backed effects, so the compatibility entries
+  -- cover the direct-pipeline effects too.
   for id in pairs({
+    EFFECT_ACCURACY_DOWN_HIT = true,
+    EFFECT_ALL_UP_HIT = true,
+    EFFECT_ALWAYS_HIT = true,
+    EFFECT_ATTACK_UP_HIT = true,
+    EFFECT_DEFENSE_UP_HIT = true,
+    EFFECT_DOUBLE_HIT = true,
+    EFFECT_FLAME_WHEEL = true,
+    EFFECT_FLY = true,
+    EFFECT_HIDDEN_POWER = true,
+    EFFECT_JUMP_KICK = true,
+    EFFECT_LEECH_HIT = true,
+    EFFECT_MULTI_HIT = true,
+    EFFECT_PAY_DAY = true,
+    EFFECT_POISON_MULTI_HIT = true,
+    EFFECT_PRIORITY_HIT = true,
+    EFFECT_PSYWAVE = true,
+    EFFECT_RAMPAGE = true,
+    EFFECT_RAZOR_WIND = true,
+    EFFECT_RECOIL_HIT = true,
     EFFECT_NORMAL_HIT = true,
     EFFECT_FLINCH_HIT = true,
     EFFECT_DEFENSE_DOWN_HIT = true,
+    EFFECT_SPEED_DOWN_HIT = true,
+    EFFECT_SP_DEF_DOWN_HIT = true,
+    EFFECT_STATIC_DAMAGE = true,
+    EFFECT_THIEF = true,
+    EFFECT_TRAP_TARGET = true,
     EFFECT_TRIPLE_KICK = true,
+    EFFECT_TRI_ATTACK = true,
+    EFFECT_TWISTER = true,
   }) do
     mod.content.move_effects:patch(id, { kind = "full" })
     counts.effects = counts.effects + 1
@@ -1487,9 +1516,12 @@ local function applyIcons(mod, data, counts)
   if not data then return end
   local sheets = data.sheets or {}
   local species = data.species or {}
+  local iconPaths = {}
   for sheetId, def in pairs(sheets) do
+    local image = (def.image and mod.assets and mod.assets.path and mod.assets:path(def.image)) or def.image
+    iconPaths[sheetId] = image
     mod.content.icons:override(sheetId, {
-      image = def.image,
+      image = image,
       width = def.width or 16,
       height = def.height or 32,
       frames = def.frames or 2,
@@ -1507,13 +1539,18 @@ local function applyIcons(mod, data, counts)
     local spec = (mon and mon.species) or (ctx and ctx.species)
     if spec then
       local iconConst = species[spec]
-      local sheet = iconConst and sheets[iconConst]
-      if sheet and sheet.image then
+      local image = iconConst and iconPaths[iconConst]
+      if image then
         if mon and mon.shiny then
-          local shinyPath = sheet.image:gsub("/gen2/", "/gen2/shiny/")
+          local shinyPath
+          if image:find("assets/icons/") then
+            shinyPath = image:gsub("assets/icons/", "assets/icons/shiny/", 1)
+          else
+            shinyPath = image:gsub("/gen2/", "/gen2/shiny/")
+          end
           return shinyPath
         end
-        return sheet.image
+        return image
       end
     end
     return next(vanillaPath, ctx)
@@ -1590,7 +1627,7 @@ local function applyIcons(mod, data, counts)
       for sheetId, def in pairs(sheets) do
         gen2Icons.icons[sheetId] = {
           id = sheetId,
-          image = def.image,
+          image = iconPaths[sheetId] or def.image,
           width = def.width or 16,
           height = def.height or 32,
           frames = def.frames or 2,

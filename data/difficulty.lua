@@ -148,6 +148,57 @@ local function getDifficultyMode(mod, save)
   return "normal"
 end
 
+local function isHardMode(mode)
+  return mode == "hard" or mode == "hardcore"
+end
+
+local function installRareCandyCap(mod)
+  if mod.content and mod.content.item_effects and mod.content.item_effects.get then
+    local vanilla = mod.content.item_effects:get("RARE_CANDY")
+    if vanilla and vanilla.use then
+      mod.content.item_effects:patch("RARE_CANDY", {
+        use = function(ctx)
+          local game = mod.game
+          local save = (game and game.save)
+            or (rawget(_G, "Game") and Game.save)
+          local mode = getDifficultyMode(mod, save)
+          if isHardMode(mode) and ctx.mon
+              and (ctx.mon.level or 1) >= getLevelCap(save) then
+            local ItemEffects = require("src.core.gen2.ItemEffects")
+            return { used = false, text = ItemEffects.TEXT_NO_EFFECT }
+          end
+          return vanilla.use(ctx)
+        end,
+      })
+    end
+  end
+
+  local okIE, ItemEffects = pcall(require, "src.core.gen2.ItemEffects")
+  if okIE and ItemEffects and ItemEffects.useOnMon then
+    local origUseOnMon = ItemEffects.useOnMon
+    ItemEffects.useOnMon = function(itemId, mon, data)
+      if mon and not mon.isEgg then
+        local save = rawget(_G, "Game") and Game.save
+        local mode = getDifficultyMode(mod, save)
+        if isHardMode(mode) then
+          if itemId == "RARE_CANDY" then
+            local cap = getLevelCap(save)
+            if (mon.level or 1) >= cap then
+              return { used = false, text = ItemEffects.TEXT_NO_EFFECT }
+            end
+          elseif (mode == "hardcore") and (mon.dead or mon.permaFainted) then
+            if itemId == "REVIVE" or itemId == "MAX_REVIVE" or itemId == "REVIVAL_HERB"
+                or (ItemEffects.REVIVE and ItemEffects.REVIVE[itemId]) then
+              return { used = false, text = ItemEffects.TEXT_NO_EFFECT }
+            end
+          end
+        end
+      end
+      return origUseOnMon(itemId, mon, data)
+    end
+  end
+end
+
 local function openDifficultySelect(mod, oakSpeech, onDone)
   local game = oakSpeech.game
   local data = game and game.data
@@ -229,7 +280,7 @@ local function openDifficultySelect(mod, oakSpeech, onDone)
           if oakSpeech.answers then
             oakSpeech.answers.difficulty = chosen
           end
-          if chosen == "hard" or chosen == "hardcore" then
+          if isHardMode(chosen) then
             if game and game.options then
               game.options.battleStyle = "SET"
             end
@@ -250,36 +301,42 @@ local function openDifficultySelect(mod, oakSpeech, onDone)
   end
 
   function screen:drawPanel()
-    local Chrome = require("src.ui.gen2.Chrome")
-    Chrome.clear()
-    oakSpeech:drawPic()
+    local Chrome = require("src.ui.Chrome")
+    local G = love.graphics
 
-    -- 1. Mode options box
-    Chrome.box(4, 1, 14, 8)
-    for idx, c in ipairs(choices) do
-      local y = 1 + idx * 2
-      Chrome.print(c.label, 7, y)
+    -- Clear background
+    G.setColor(0, 0, 0, 1)
+    G.rectangle("fill", 0, 0, 160, 144)
+
+    -- Header Box: (1, 1) to (18, 3)
+    Chrome.drawBox(1, 1, 18, 3)
+    Chrome.printThrough("SELECT DIFFICULTY", 16, 16)
+
+    -- Choices Box: (1, 4) to (18, 9)
+    Chrome.drawBox(1, 4, 18, 6)
+    for i, choice in ipairs(choices) do
+      local y = 40 + (i - 1) * 12
+      local prefix = (self.cursor == i) and "▶" or " "
+      Chrome.printThrough(prefix .. " " .. choice.label, 16, y)
     end
-    -- Cursor
-    Chrome.cursor(5, 1 + self.cursor * 2)
 
-    -- 2. Bottom Description / Confirmation Textbox
-    Chrome.box(0, 10, 20, 8)
+    -- Description Box: (1, 10) to (18, 15)
+    Chrome.drawBox(1, 10, 18, 5)
     local curChoice = choices[self.cursor]
+    if curChoice then
+      Chrome.printThrough(curChoice.desc1, 16, 88)
+      Chrome.printThrough(curChoice.desc2, 16, 102)
+    end
 
-    if self.state == "select" then
-      Chrome.print(curChoice.desc1, 1, 12)
-      Chrome.print(curChoice.desc2, 1, 14)
-      Chrome.print("A: SELECT", 1, 16)
-    elseif self.state == "confirm" then
-      Chrome.print(curChoice.confirm, 1, 12)
-      Chrome.print("Are you sure?", 1, 14)
-
-      -- YES / NO prompt box
-      Chrome.box(13, 4, 6, 5)
-      Chrome.print("YES", 15, 5)
-      Chrome.print("NO", 15, 7)
-      Chrome.cursor(14, 5 + (self.yesCursor - 1) * 2)
+    -- Confirmation Modal Popup
+    if self.state == "confirm" then
+      Chrome.drawBox(9, 6, 9, 6)
+      local promptY = 56
+      Chrome.printThrough(curChoice.confirm, 80, promptY)
+      local yesPrefix = (self.yesCursor == 1) and "▶" or " "
+      local noPrefix = (self.yesCursor == 2) and "▶" or " "
+      Chrome.printThrough(yesPrefix .. " YES", 88, 72)
+      Chrome.printThrough(noPrefix .. " NO", 88, 86)
     end
   end
 
@@ -288,11 +345,9 @@ local function openDifficultySelect(mod, oakSpeech, onDone)
   end
 
   function screen:drawWidescreen(winW, winH)
-    local Chrome = require("src.ui.gen2.Chrome")
+    local Chrome = require("src.ui.Chrome")
     local G = love.graphics
-    G.setColor(1, 1, 1, 1)
-    G.rectangle("fill", 0, 0, winW, winH)
-    local scale = Chrome.fitScale(winW, winH)
+    local scale = math.min(winW / 160, winH / 144)
     local ox, oy = Chrome.fitOrigin(winW, winH, scale)
     G.push()
     G.translate(ox, oy)
@@ -310,6 +365,7 @@ end
 
 local function applyDifficulty(mod, trainersData)
   local trainerItemMap = getTrainerHeldItems(trainersData)
+  installRareCandyCap(mod)
 
   -- Sync difficulty mode on save events
   mod.events:on("save.loaded", function(payload)
@@ -318,7 +374,7 @@ local function applyDifficulty(mod, trainersData)
     if mode and mode ~= "" then
       mod.difficultyMode = mode
       if save then save.difficulty = mode end
-      if (mode == "hard" or mode == "hardcore") and save and save.options then
+      if isHardMode(mode) and save and save.options then
         save.options.battleStyle = "SET"
       end
     end
@@ -329,7 +385,7 @@ local function applyDifficulty(mod, trainersData)
     local mode = (mod.save and mod.save:get("difficulty")) or mod.difficultyMode
     if mode and mode ~= "" and save then
       save.difficulty = mode
-      if (mode == "hard" or mode == "hardcore") and save.options then
+      if isHardMode(mode) and save.options then
         save.options.battleStyle = "SET"
       end
     end
@@ -374,7 +430,7 @@ local function applyDifficulty(mod, trainersData)
     if not battle or not battle.enemyParty then return end
     local save = (battle.game and battle.game.save) or battle.save
     local mode = getDifficultyMode(mod, save)
-    if mode == "hard" or mode == "hardcore" then
+    if isHardMode(mode) then
       if battle.game and battle.game.options then
         battle.game.options.battleStyle = "SET"
       end
@@ -427,7 +483,7 @@ local function applyDifficulty(mod, trainersData)
   mod.hooks:wrap("battle.item_usable", function(next, ctx)
     local save = (ctx and ctx.game and ctx.game.save) or (ctx and ctx.battle and ctx.battle.save)
     local mode = getDifficultyMode(mod, save)
-    if mode == "hard" or mode == "hardcore" then
+    if isHardMode(mode) then
       if ctx and ctx.battle and (ctx.battle.trainer ~= nil or ctx.battle.isTrainerBattle) then
         return false, "Bag items cannot be used in trainer battles during Hard Mode!"
       end
@@ -442,7 +498,7 @@ local function applyDifficulty(mod, trainersData)
       or (c.battle and c.battle.game and c.battle.game.save)
       or (rawget(_G, "Game") and Game.save)
     local mode = getDifficultyMode(mod, save)
-    if mode ~= "hard" and mode ~= "hardcore" then
+    if not isHardMode(mode) then
       return vanillaAmount
     end
 
@@ -499,12 +555,12 @@ local function applyDifficulty(mod, trainersData)
           save.difficulty = nextMode
           if save.options then
             save.options.difficulty = nextMode
-            if nextMode == "hard" or nextMode == "hardcore" then
+            if isHardMode(nextMode) then
               save.options.battleStyle = "SET"
             end
           end
         end
-        if g and g.options and (nextMode == "hard" or nextMode == "hardcore") then
+        if g and g.options and isHardMode(nextMode) then
           g.options.battleStyle = "SET"
         end
         if g and g.writeOptions then g:writeOptions() end
@@ -514,33 +570,7 @@ local function applyDifficulty(mod, trainersData)
     return out
   end, 50)
 
-  -- 7. Rare Candy level cap & Hardcore Revive ban (item_effects.asm parity)
-  local okIE, ItemEffects = pcall(require, "src.core.gen2.ItemEffects")
-  if okIE and ItemEffects and ItemEffects.useOnMon then
-    local origUseOnMon = ItemEffects.useOnMon
-    ItemEffects.useOnMon = function(itemId, mon, data)
-      if mon and not mon.isEgg then
-        local save = rawget(_G, "Game") and Game.save
-        local mode = getDifficultyMode(mod, save)
-        if mode == "hard" or mode == "hardcore" then
-          if itemId == "RARE_CANDY" then
-            local cap = getLevelCap(save)
-            if (mon.level or 1) >= cap then
-              return { used = false, text = ItemEffects.TEXT_NO_EFFECT }
-            end
-          elseif (mode == "hardcore") and (mon.dead or mon.permaFainted) then
-            if itemId == "REVIVE" or itemId == "MAX_REVIVE" or itemId == "REVIVAL_HERB"
-                or (ItemEffects.REVIVE and ItemEffects.REVIVE[itemId]) then
-              return { used = false, text = ItemEffects.TEXT_NO_EFFECT }
-            end
-          end
-        end
-      end
-      return origUseOnMon(itemId, mon, data)
-    end
-  end
-
-  -- 8. Hardcore Permadeath Tracking
+  -- 7. Hardcore Permadeath Tracking
   mod.events:on("battle.fainted", function(payload)
     local battler = payload and payload.battler
     local save = (payload and payload.battle and payload.battle.game and payload.battle.game.save) or (payload and payload.battle and payload.battle.save)
@@ -556,4 +586,6 @@ return {
   applyDifficulty = applyDifficulty,
   BADGE_LEVEL_CAPS = BADGE_LEVEL_CAPS,
   getLevelCap = getLevelCap,
+  levelCapFor = getLevelCap,
+  isHardMode = isHardMode,
 }

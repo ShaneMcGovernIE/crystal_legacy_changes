@@ -1,5 +1,40 @@
 # Changelog
 
+## [1.3.10] - 2026-08-28
+
+### Fixed
+
+- Merged and aligned upstream v1.3.9 changes with exact Crystal Legacy assembly level caps:
+  Falkner (10), Bugsy (16), Whitney (21), Morty (25), Chuck (31), Jasmine (36), Pryce (38),
+  Clair (45), Will (50), Koga (52), Bruno (54), Karen/Lance (55), Lance Defeated (60),
+  Kanto Gyms (62, 63, 64, 66, 66, 67, 69), Lance Rematch (77), and Red (93 -> 100).
+- Merged upstream Rare Candy cap patch with ItemEffects party use hooks.
+- Preserved in-game pause Options menu DIFFICULTY row and full-color party menu icon rendering.
+
+## [1.3.9] - 2026-08-28
+
+### Fixed
+
+- Resolved Crystal Legacy party menu icon paths through the mod asset loader,
+  restoring the bundled party sprites.
+- Enforced Hard and Hardcore level caps for Rare Candy as well as battle EXP.
+
+## [1.3.8] - 2026-08-28
+
+### Fixed
+
+- Registered the Crystal direct-pipeline move effects required by the engine's
+  cross-reference validator, without replacing their native battle behavior.
+
+## [1.3.7] - 2026-08-28
+
+### Changed
+
+- Ported the mod metadata and runtime patches to Pokémon Crystal, including
+  the Crystal Legacy encounters, trainers, marts, evolutions, events,
+  difficulty modes, quality-of-life changes, and bundled custom assets.
+- Removed local agent/internal planning artifacts and added repository hygiene
+  rules for credentials, local metadata, and build output.
 ## [1.2.0] - 2026-08-26
 
 ### Added

@@ -117,7 +117,7 @@ statics.snorlax = {
 -- designer chain itself: "5e:4c8c" does readvar 5 (VAR_DEXCAUGHT) / ifgreater
 -- 248 -> "5e:4c9a", i.e. releases at caught > 248 = 249 caught — the same
 -- NUM_POKEMON - 2 - 1 formula CL uses (251 species minus Mew and Celebi;
--- PLAN.md's "250-dex" is the doc's shorthand for this gate).  The diploma
+-- the design document's "250-dex" shorthand refers to this gate).  The diploma
 -- branch "5e:4c9a" (fanfare, special 106 Diploma, setevent 214) is gold's
 -- own.  What CL ADDS is the release: checkevent MEW_CAUGHT / iftrue skip /
 -- clearevent MEW, spliced into the diploma branch via wholesale row rebuild
@@ -441,6 +441,20 @@ statics.celebi = {
     shrineInsert = "<PLAYER> put in the GS BALL.",
     fallback = "There is a strange presence here… Perhaps this BALL belongs to ILEX FOREST. Take it!",
   },
+}
+
+-- ---------------------------------------------------------------------------
+-- Mt. Mortar: Karate King Kiyo (Tyrogue Lv 10).
+-- In Crystal Legacy, Kiyo is moved from deep B1F (Waterfall) to 1F Outside (11, 15)
+-- accessible right off Route 42 around Gym 4 without Waterfall.
+-- ---------------------------------------------------------------------------
+statics.kiyo = {
+  sourceMap = "MOUNT_MORTAR_B1F",
+  destMap = "MOUNT_MORTAR_1F_OUTSIDE",
+  coords = { x = 11, y = 15 },
+  sprite = "SPRITE_BLACK_BELT",
+  movement = 7, -- SPRITEMOVEDATA_STANDING_LEFT
+  scriptKey = "1f:61f6", -- Blackbelt Kiyo script in Crystal
 }
 
 return statics

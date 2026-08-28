@@ -1,5 +1,40 @@
 # Changelog
 
+## [1.3.7] - 2026-08-28
+
+### Changed
+
+- Ported the mod metadata and runtime patches to Pokémon Crystal, including
+  the Crystal Legacy encounters, trainers, marts, evolutions, events,
+  difficulty modes, quality-of-life changes, and bundled custom assets.
+- Removed local agent/internal planning artifacts and added repository hygiene
+  rules for credentials, local metadata, and build output.
+
+## [1.2.0] - 2026-08-26
+
+### Added
+
+- **Difficulty & Battle Mechanics (`data/difficulty.lua`)**:
+  - Trainer Held Items: Enemy trainer Pokémon automatically equip their canonical held items from `data/trainers.lua` in battle.
+  - Triple Kick 20 -> 60 -> 120 damage scaling.
+  - Hard & Hardcore difficulty modes (in-battle item ban, Set battle style, badge level caps, permadeath tracking).
+- **Quality of Life (`data/qol.lua`)**:
+  - TM & HM move names displayed directly on bag items (`TM01 DYNAMICPUNCH`, `HM03 SURF`, etc.).
+  - Deletable HM moves (Move Deleter bypasses HM restriction).
+  - Halved egg hatch cycle step requirements.
+  - Instant Kurt Apricorn ball crafting.
+  - Fast Nurse Joy healing and unlosable first rival battle flow.
+- **Custom Party Menu Sprites (`data/icons.lua` & `assets/icons/`)**:
+  - Added all 251 unique animated 16x32 party menu icons from Crystal Legacy, replacing the generic Gen 2 species icon categories with individual species sprites.
+
+## [1.1.0] - 2026-08-26
+
+### Changed
+
+- Ported mod target from Pokémon Gold to **Pokémon Crystal** (`"games": ["crystal"]`).
+- Updated mart handling and `MART_ORDER` to support all Crystal and Crystal Legacy shelves in `game.data.gen2Marts`.
+- Updated mod metadata, warnings, and documentation to specifically target Crystal.
+
 ## [1.0.0] - 2026-08-13
 
 ### Added

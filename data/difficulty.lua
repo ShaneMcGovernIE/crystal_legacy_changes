@@ -88,6 +88,35 @@ local function getDifficultyMode(mod, save)
   return "normal"
 end
 
+local function isHardMode(mode)
+  return mode == "hard" or mode == "hardcore"
+end
+
+local function levelCapFor(save)
+  local badges = countPlayerBadges(save)
+  return BADGE_LEVEL_CAPS[badges] or (badges >= 16 and 100 or 12)
+end
+
+local function installRareCandyCap(mod)
+  local vanilla = mod.content.item_effects:get("RARE_CANDY")
+  if not vanilla or not vanilla.use then return end
+
+  mod.content.item_effects:patch("RARE_CANDY", {
+    use = function(ctx)
+      local game = mod.game
+      local save = (game and game.save)
+        or (rawget(_G, "Game") and Game.save)
+      local mode = getDifficultyMode(mod, save)
+      if isHardMode(mode) and ctx.mon
+          and (ctx.mon.level or 1) >= levelCapFor(save) then
+        local ItemEffects = require("src.core.gen2.ItemEffects")
+        return { used = false, text = ItemEffects.TEXT_NO_EFFECT }
+      end
+      return vanilla.use(ctx)
+    end,
+  })
+end
+
 local function openDifficultySelect(mod, oakSpeech, onDone)
   local game = oakSpeech.game
   local data = game and game.data
@@ -169,7 +198,7 @@ local function openDifficultySelect(mod, oakSpeech, onDone)
           if oakSpeech.answers then
             oakSpeech.answers.difficulty = chosen
           end
-          if chosen == "hard" or chosen == "hardcore" then
+          if isHardMode(chosen) then
             if game and game.options then
               game.options.battleStyle = "SET"
             end
@@ -250,6 +279,7 @@ end
 
 local function applyDifficulty(mod, trainersData)
   local trainerItemMap = getTrainerHeldItems(trainersData)
+  installRareCandyCap(mod)
 
   -- Sync difficulty mode on save events
   mod.events:on("save.loaded", function(payload)
@@ -258,7 +288,7 @@ local function applyDifficulty(mod, trainersData)
     if mode and mode ~= "" then
       mod.difficultyMode = mode
       if save then save.difficulty = mode end
-      if (mode == "hard" or mode == "hardcore") and save and save.options then
+      if isHardMode(mode) and save and save.options then
         save.options.battleStyle = "SET"
       end
     end
@@ -269,7 +299,7 @@ local function applyDifficulty(mod, trainersData)
     local mode = (mod.save and mod.save:get("difficulty")) or mod.difficultyMode
     if mode and mode ~= "" and save then
       save.difficulty = mode
-      if (mode == "hard" or mode == "hardcore") and save.options then
+      if isHardMode(mode) and save.options then
         save.options.battleStyle = "SET"
       end
     end
@@ -314,7 +344,7 @@ local function applyDifficulty(mod, trainersData)
     if not battle or not battle.enemyParty then return end
     local save = (battle.game and battle.game.save) or battle.save
     local mode = getDifficultyMode(mod, save)
-    if mode == "hard" or mode == "hardcore" then
+    if isHardMode(mode) then
       if battle.game and battle.game.options then
         battle.game.options.battleStyle = "SET"
       end
@@ -367,7 +397,7 @@ local function applyDifficulty(mod, trainersData)
   mod.hooks:wrap("battle.item_usable", function(next, ctx)
     local save = (ctx and ctx.game and ctx.game.save) or (ctx and ctx.battle and ctx.battle.save)
     local mode = getDifficultyMode(mod, save)
-    if mode == "hard" or mode == "hardcore" then
+    if isHardMode(mode) then
       if ctx and ctx.battle and (ctx.battle.trainer ~= nil or ctx.battle.isTrainerBattle) then
         return false, "Bag items cannot be used in trainer battles during Hard Mode!"
       end
@@ -382,15 +412,14 @@ local function applyDifficulty(mod, trainersData)
       or (c.battle and c.battle.game and c.battle.game.save)
       or (rawget(_G, "Game") and Game.save)
     local mode = getDifficultyMode(mod, save)
-    if mode ~= "hard" and mode ~= "hardcore" then
+    if not isHardMode(mode) then
       return vanillaAmount
     end
 
     local mon = c.mon
     if not mon then return vanillaAmount end
 
-    local badges = countPlayerBadges(save)
-    local cap = BADGE_LEVEL_CAPS[badges] or (badges >= 16 and 100 or 12)
+    local cap = levelCapFor(save)
 
     -- If already at or above cap, award 0 exp
     if (mon.level or 1) >= cap then
@@ -440,12 +469,12 @@ local function applyDifficulty(mod, trainersData)
           save.difficulty = nextMode
           if save.options then
             save.options.difficulty = nextMode
-            if nextMode == "hard" or nextMode == "hardcore" then
+            if isHardMode(nextMode) then
               save.options.battleStyle = "SET"
             end
           end
         end
-        if g and g.options and (nextMode == "hard" or nextMode == "hardcore") then
+        if g and g.options and isHardMode(nextMode) then
           g.options.battleStyle = "SET"
         end
         if g and g.writeOptions then g:writeOptions() end

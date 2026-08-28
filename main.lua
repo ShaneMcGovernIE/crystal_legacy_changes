@@ -1518,9 +1518,12 @@ local function applyIcons(mod, data, counts)
   if not data then return end
   local sheets = data.sheets or {}
   local species = data.species or {}
+  local iconPaths = {}
   for sheetId, def in pairs(sheets) do
+    local image = def.image and mod.assets:path(def.image)
+    iconPaths[sheetId] = image
     mod.content.icons:override(sheetId, {
-      image = def.image,
+      image = image,
       width = def.width or 16,
       height = def.height or 32,
       frames = def.frames or 2,
@@ -1538,13 +1541,13 @@ local function applyIcons(mod, data, counts)
     local spec = (mon and mon.species) or (ctx and ctx.species)
     if spec then
       local iconConst = species[spec]
-      local sheet = iconConst and sheets[iconConst]
-      if sheet and sheet.image then
+      local image = iconConst and iconPaths[iconConst]
+      if image then
         if mon and mon.shiny then
-          local shinyPath = sheet.image:gsub("/gen2/", "/gen2/shiny/")
+          local shinyPath = image:gsub("assets/icons/", "assets/icons/shiny/", 1)
           return shinyPath
         end
-        return sheet.image
+        return image
       end
     end
     return next(vanillaPath, ctx)
@@ -1621,7 +1624,7 @@ local function applyIcons(mod, data, counts)
       for sheetId, def in pairs(sheets) do
         gen2Icons.icons[sheetId] = {
           id = sheetId,
-          image = def.image,
+          image = iconPaths[sheetId],
           width = def.width or 16,
           height = def.height or 32,
           frames = def.frames or 2,

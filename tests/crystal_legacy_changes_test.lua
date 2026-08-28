@@ -872,6 +872,12 @@ local run = T.sdk.loadMod("mods/crystal_legacy_changes", {
 T.eq(run.mod and run.mod.state, "loaded", "runs on Gold")
 T.eq(#run.errors, 0, "loads without errors")
 
+-- Gen 2 PartyMenu reads icon image paths from the merged data table directly;
+-- the mod asset resolver must turn the relative path into a mod-local path.
+T.eq(run.data.gen2Icons.icons.ICON_ABRA.image,
+  "mods/crystal_legacy_changes/assets/icons/abra.png",
+  "party icon points at the mod-local asset")
+
 local moves = run.loader.content.moves
 local pokemon = run.loader.content.pokemon
 local types = run.loader.content.type_chart
@@ -2825,6 +2831,38 @@ T.eq(ItemEffects.partyAction("WATER_STONE"), "evolve", "pack menu routes to the 
   local candyAlive = ItemEffects.useOnMon("RARE_CANDY", alive, data,
     { difficulty = "hardcore" })
   T.check(candyAlive.used, "the candy still works on an alive mon")
+
+  -- Battle EXP and Rare Candy must enforce the same badge-derived cap in both
+  -- modes.  Use the merged runtime data so these exercise the installed hooks.
+  local Runtime = require("src.mods.Runtime")
+  local runtimeData = run.data
+  local runtimeDef = runtimeData.pokemon.PIKACHU
+  local growth = Mon.growthFor(runtimeData, runtimeDef.growthRate)
+  local level11Exp = Mon.experienceForLevel(growth, 11)
+  local level12Exp = Mon.experienceForLevel(growth, 12)
+  for _, mode in ipairs({ "hard", "hardcore" }) do
+    run.loader.modSave["crystal_legacy_changes"] = { difficulty = mode }
+    local capped = Mon.new(runtimeData, "PIKACHU", 11, { moves = {} })
+    capped.experience = level11Exp
+    local gained = Runtime.call("exp.gain", function() return 9999 end, {
+      defeatedDef = runtimeDef,
+      level = 50,
+      isTrainer = true,
+      participants = 1,
+      mon = capped,
+      battle = {
+        save = { difficulty = mode, player = { badges = {} } },
+        data = runtimeData,
+      },
+    })
+    T.eq(gained, level12Exp - level11Exp,
+      mode .. " clamps battle EXP at the level cap")
+
+    local candyMon = Mon.new(runtimeData, "PIKACHU", 12, { moves = {} })
+    local candy = ItemEffects.useOnMon("RARE_CANDY", candyMon, runtimeData)
+    T.check(not candy.used and candyMon.level == 12,
+      mode .. " blocks Rare Candy at the level cap")
+  end
 end)()
 
 run.release()

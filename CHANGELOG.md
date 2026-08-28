@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.3.9] - 2026-08-28
+
+### Fixed
+
+- Resolved Crystal Legacy party menu icon paths through the mod asset loader,
+  restoring the bundled party sprites.
+- Enforced Hard and Hardcore level caps for Rare Candy as well as battle EXP.
+
 ## [1.3.8] - 2026-08-28
 
 ### Fixed

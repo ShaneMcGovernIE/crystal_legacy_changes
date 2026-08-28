@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.8] - 2026-08-28
+
+### Fixed
+
+- Registered the Crystal direct-pipeline move effects required by the engine's
+  cross-reference validator, without replacing their native battle behavior.
+
 ## [1.3.7] - 2026-08-28
 
 ### Changed

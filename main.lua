@@ -44,11 +44,42 @@ local function applyRebalance(mod, data)
 
   -- Crystal's battle loop handles these effects directly from the move id, but
   -- the registry still needs a record so a patched move's reference validates.
+  -- Keep these as empty `full` records: the Gen 2 battle module owns their
+  -- behavior in its damage pipeline, while the content schema still requires
+  -- every move.effect reference to resolve through move_effects.  Some engine
+  -- builds seed only the handler-backed effects, so the compatibility entries
+  -- cover the direct-pipeline effects too.
   for id in pairs({
+    EFFECT_ACCURACY_DOWN_HIT = true,
+    EFFECT_ALL_UP_HIT = true,
+    EFFECT_ALWAYS_HIT = true,
+    EFFECT_ATTACK_UP_HIT = true,
+    EFFECT_DEFENSE_UP_HIT = true,
+    EFFECT_DOUBLE_HIT = true,
+    EFFECT_FLAME_WHEEL = true,
+    EFFECT_FLY = true,
+    EFFECT_HIDDEN_POWER = true,
+    EFFECT_JUMP_KICK = true,
+    EFFECT_LEECH_HIT = true,
+    EFFECT_MULTI_HIT = true,
+    EFFECT_PAY_DAY = true,
+    EFFECT_POISON_MULTI_HIT = true,
+    EFFECT_PRIORITY_HIT = true,
+    EFFECT_PSYWAVE = true,
+    EFFECT_RAMPAGE = true,
+    EFFECT_RAZOR_WIND = true,
+    EFFECT_RECOIL_HIT = true,
     EFFECT_NORMAL_HIT = true,
     EFFECT_FLINCH_HIT = true,
     EFFECT_DEFENSE_DOWN_HIT = true,
+    EFFECT_SPEED_DOWN_HIT = true,
+    EFFECT_SP_DEF_DOWN_HIT = true,
+    EFFECT_STATIC_DAMAGE = true,
+    EFFECT_THIEF = true,
+    EFFECT_TRAP_TARGET = true,
     EFFECT_TRIPLE_KICK = true,
+    EFFECT_TRI_ATTACK = true,
+    EFFECT_TWISTER = true,
   }) do
     mod.content.move_effects:patch(id, { kind = "full" })
     counts.effects = counts.effects + 1

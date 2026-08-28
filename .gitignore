@@ -1,0 +1,38 @@
+# Operating-system and editor metadata
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+*.swp
+*.swo
+*~
+.idea/
+.vscode/
+
+# Local agent and planning metadata
+.agents/
+.codex/
+.claude/
+.cursor/
+.windsurf/
+AGENTS.md
+PLAN.md
+docs/superpowers/
+
+# Environment files and credentials
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+credentials*.json
+secrets*.json
+*-credentials.json
+
+# Local build and release output
+dist/
+build/
+coverage/

@@ -1,20 +1,21 @@
 return {
-  summary = "Crystal Legacy (TSP) Gold stat, move, level-up, and TM/HM rebalance.",
+  summary = "Crystal Legacy (TSP) Crystal data, story, event, difficulty, and quality-of-life changes.",
   author = "Pokemon Gen 1 Recompilation Project",
   contact = "https://github.com/bryanthaboi/gen1recomp",
-  tags = { "balance", "gold", "data" },
+  tags = { "balance", "crystal", "data" },
   differences = {
     changed = {
-      "48 Gold species receive Crystal Legacy base-stat values",
+      "48 Crystal species receive Crystal Legacy base-stat values",
       "251 species receive the Crystal Legacy version 1.3 level-up learnsets",
       "251 species receive canonical TM01-TM50 and HM01-HM07 compatibility lists",
-      "Documented Gold move power, accuracy, PP, type, priority, and compatible effect changes, including Sacred Fire's PP",
-      "Ghost is Special and Dark is Physical through the Gold type registry",
+      "Documented move power, accuracy, PP, type, priority, and compatible effect changes, including Sacred Fire's PP",
+      "Ghost is Special and Dark is Physical through the Crystal type registry",
+      "Crystal Legacy wild encounters, trainer parties, marts, evolutions, story events, and gifts",
+      "Hard and Hardcore difficulty modes plus Crystal Legacy quality-of-life changes",
     },
     known = {
-      "encounters and trainer teams await their source tables",
-      "story, mart, gift, and event changes are not implemented yet (PLAN.md Phase 3)",
-      "Triple Kick's custom 20/60/120 scaling is not represented by the current move registry",
+      "Battle Tower custom floor rewards and rosters are not included",
+      "The GS Ball custom bag icon sprite is not included",
     },
   },
   credits = {

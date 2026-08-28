@@ -1,5 +1,5 @@
 return {
-  -- Gold already carries the Gen 2 type table.  These are category changes,
+  -- Crystal carries the Gen 2 type table. These are category changes,
   -- not matchup changes.
   types = {
     GHOST = { category = "special" },
@@ -93,7 +93,7 @@ return {
     ["Aeroblast"] = { power = 100, accuracy = 95, pp = 10 },
     ["Fly"] = { power = 70, accuracy = 100, pp = 15 },
     -- The document removes Sky Attack's charge turn.  EFFECT_NORMAL_HIT is
-    -- the Gold-native one-turn route; its dedicated animation remains a
+    -- the native one-turn route; its dedicated animation remains a
     -- separate engine concern.
     ["Sky Attack"] = {
       power = 120,

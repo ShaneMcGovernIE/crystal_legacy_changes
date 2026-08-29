@@ -5,7 +5,7 @@
 -- 4. Hard / Hardcore difficulty modes (item ban, set mode, level caps, permadeath).
 
 -- Exact Crystal Legacy level caps from cRz-Shadows/Pokemon_Crystal_Legacy source:
--- PlayersHouse1F.asm (0 Badges): 10 (Falkner's ace Pidgeotto is Lv 10)
+-- PlayersHouse1F.asm (0 Badges): 10 (Falkner's ace Noctowl is Lv 10)
 -- VioletGym.asm (1 Badge): 16 (Bugsy's ace Scyther is Lv 16)
 -- AzaleaGym.asm (2 Badges): 21 (Whitney's ace Miltank is Lv 21)
 -- GoldenrodGym.asm (3 Badges): 25 (Morty's ace Gengar is Lv 25)
@@ -16,8 +16,11 @@
 -- DragonShrine.asm (8 Badges): 50 (Will's ace Xatu is Lv 50)
 -- WillsRoom.asm (Will beaten): 52 (Koga's ace Crobat is Lv 52)
 -- KogasRoom.asm (Koga beaten): 54 (Bruno's ace Machamp is Lv 54)
--- BrunosRoom.asm (Bruno beaten): 55 (Karen's ace Houndoom is Lv 55, Lance is 56)
--- LancesRoom.asm (Lance beaten / Kanto intro): 60 (Lt. Surge's ace Raichu is Lv 60)
+-- BrunosRoom.asm (Bruno beaten): 55 (Karen's ace Houndoom is Lv 55).
+-- KarensRoom.asm sets no cap, so Lance (ace Dragonite Lv 56) is fought at 55
+-- too; LancesRoom.asm raises the cap to 60 only AFTER the Lance battle.
+-- LancesRoom.asm (Lance beaten / Kanto intro): 60 (Kanto routes; Lt. Surge's
+-- ace Raichu is Lv 60, fought later under the 10-badge cap of 63).
 -- std_scripts.asm (9 Badges): 62
 -- std_scripts.asm (10 Badges): 63
 -- std_scripts.asm (11 Badges): 64
@@ -29,7 +32,7 @@
 -- SilverCaveRoom3.asm (Red beaten): 100
 
 local BADGE_LEVEL_CAPS = {
-  [0] = 10,  -- Falkner (Pidgeotto Lv 10)
+  [0] = 10,  -- Falkner (Noctowl Lv 10)
   [1] = 16,  -- Bugsy (Scyther Lv 16)
   [2] = 21,  -- Whitney (Miltank Lv 21)
   [3] = 25,  -- Morty (Gengar Lv 25)
@@ -301,42 +304,42 @@ local function openDifficultySelect(mod, oakSpeech, onDone)
   end
 
   function screen:drawPanel()
-    local Chrome = require("src.ui.Chrome")
-    local G = love.graphics
+    -- The released engine's only Chrome is src.ui.gen2.Chrome (clear/box/
+    -- print/cursor/printThrough).  src.ui.Chrome (drawBox) does not exist on
+    -- any shipped build, and requiring it crashes the game the first frame
+    -- this screen draws -- right before the demo-mon reveal.  Keep the Gen 2
+    -- chrome here; a fullscreen pixel-menu restyle can land with the engine
+    -- build that actually ships src.ui.Chrome.
+    local Chrome = require("src.ui.gen2.Chrome")
+    Chrome.clear()
+    oakSpeech:drawPic()
 
-    -- Clear background
-    G.setColor(0, 0, 0, 1)
-    G.rectangle("fill", 0, 0, 160, 144)
-
-    -- Header Box: (1, 1) to (18, 3)
-    Chrome.drawBox(1, 1, 18, 3)
-    Chrome.printThrough("SELECT DIFFICULTY", 16, 16)
-
-    -- Choices Box: (1, 4) to (18, 9)
-    Chrome.drawBox(1, 4, 18, 6)
-    for i, choice in ipairs(choices) do
-      local y = 40 + (i - 1) * 12
-      local prefix = (self.cursor == i) and "▶" or " "
-      Chrome.printThrough(prefix .. " " .. choice.label, 16, y)
+    -- 1. Mode options box
+    Chrome.box(4, 1, 14, 8)
+    for idx, c in ipairs(choices) do
+      local y = 1 + idx * 2
+      Chrome.print(c.label, 7, y)
     end
+    -- Cursor
+    Chrome.cursor(5, 1 + self.cursor * 2)
 
-    -- Description Box: (1, 10) to (18, 15)
-    Chrome.drawBox(1, 10, 18, 5)
+    -- 2. Bottom Description / Confirmation Textbox
+    Chrome.box(0, 10, 20, 8)
     local curChoice = choices[self.cursor]
-    if curChoice then
-      Chrome.printThrough(curChoice.desc1, 16, 88)
-      Chrome.printThrough(curChoice.desc2, 16, 102)
-    end
 
-    -- Confirmation Modal Popup
-    if self.state == "confirm" then
-      Chrome.drawBox(9, 6, 9, 6)
-      local promptY = 56
-      Chrome.printThrough(curChoice.confirm, 80, promptY)
-      local yesPrefix = (self.yesCursor == 1) and "▶" or " "
-      local noPrefix = (self.yesCursor == 2) and "▶" or " "
-      Chrome.printThrough(yesPrefix .. " YES", 88, 72)
-      Chrome.printThrough(noPrefix .. " NO", 88, 86)
+    if self.state == "select" then
+      Chrome.print(curChoice.desc1, 1, 12)
+      Chrome.print(curChoice.desc2, 1, 14)
+      Chrome.print("A: SELECT", 1, 16)
+    elseif self.state == "confirm" then
+      Chrome.print(curChoice.confirm, 1, 12)
+      Chrome.print("Are you sure?", 1, 14)
+
+      -- YES / NO prompt box
+      Chrome.box(13, 4, 6, 5)
+      Chrome.print("YES", 15, 5)
+      Chrome.print("NO", 15, 7)
+      Chrome.cursor(14, 5 + (self.yesCursor - 1) * 2)
     end
   end
 
@@ -345,9 +348,11 @@ local function openDifficultySelect(mod, oakSpeech, onDone)
   end
 
   function screen:drawWidescreen(winW, winH)
-    local Chrome = require("src.ui.Chrome")
+    local Chrome = require("src.ui.gen2.Chrome")
     local G = love.graphics
-    local scale = math.min(winW / 160, winH / 144)
+    G.setColor(1, 1, 1, 1)
+    G.rectangle("fill", 0, 0, winW, winH)
+    local scale = Chrome.fitScale(winW, winH)
     local ox, oy = Chrome.fitOrigin(winW, winH, scale)
     G.push()
     G.translate(ox, oy)
@@ -409,6 +414,30 @@ local function applyDifficulty(mod, trainersData)
     end
     return custom
   end, 50)
+
+  -- 1b. Crystal Legacy's intro demo mon is WOOPER (`ld a, WOOPER` in CL and
+  -- vanilla pokecrystal engine/menus/intro_menu.asm), revealed between
+  -- oak_welcome and the difficulty pick.  Engine builds that predate the
+  -- edition-aware extractor hardcode MARILL, so pin the species, sprite, and
+  -- palette from the mod on every build.  intro.oak_speech.started fires in
+  -- enter() before any step runs, and the demo step reads these fields at
+  -- draw/cry time, so overwriting them there is safe.
+  mod.events:on("intro.oak_speech.started", function(payload)
+    local speech = payload and payload.speech
+    if not speech then return end
+    speech.demoSpecies = "WOOPER"
+    local okAssets, Assets = pcall(require, "src.render.Assets")
+    if okAssets and type(Assets) == "table" and type(Assets.image) == "function" then
+      local okImg, img = pcall(Assets.image, "assets/generated/battle/front/wooper.png")
+      if okImg and img then speech.marillPic = img end
+    end
+    local okPal, Palettes = pcall(require, "src.world.gen2.Palettes")
+    if okPal and type(Palettes) == "table" and type(Palettes.monColors) == "function" then
+      local okColors, colors = pcall(Palettes.monColors,
+        speech.game and speech.game.data and speech.game.data.gen2Palettes, "WOOPER")
+      if okColors and colors then speech.marillColors = colors end
+    end
+  end)
 
   -- 2. Trainer Held Items: Hook trainer party / battle start to equip canonical held items
   mod.hooks:wrap("trainer.party", function(next, oppClass, partyIndex, partyDef)
@@ -479,17 +508,27 @@ local function applyDifficulty(mod, trainersData)
     return next(ctx)
   end, 50)
 
-  -- 4. Hard / Hardcore Battle Item Ban
-  mod.hooks:wrap("battle.item_usable", function(next, ctx)
-    local save = (ctx and ctx.game and ctx.game.save) or (ctx and ctx.battle and ctx.battle.save)
-    local mode = getDifficultyMode(mod, save)
-    if isHardMode(mode) then
-      if ctx and ctx.battle and (ctx.battle.trainer ~= nil or ctx.battle.isTrainerBattle) then
-        return false, "Bag items cannot be used in trainer battles during Hard Mode!"
+  -- 4. Hard / Hardcore Battle Item Ban.  Every engine build's BagMenu routes
+  -- bag use through ItemEffects.use (src/inventory/ItemEffects.lua); newer
+  -- builds wrap that same dispatch with an "item.use" hook.  Patching the
+  -- function itself covers both.  (The historical "battle.item_usable" hook
+  -- name is emitted by no engine build, so wrapping it was a silent no-op
+  -- and the ban never fired.)
+  local okInv, InvItemEffects = pcall(require, "src.inventory.ItemEffects")
+  if okInv and type(InvItemEffects) == "table" and type(InvItemEffects.use) == "function" then
+    local origUse = InvItemEffects.use
+    InvItemEffects.use = function(data, save, itemId, target, battle, moveIndex, ow)
+      local mode = getDifficultyMode(mod, save)
+      if isHardMode(mode) and battle
+          and (battle.trainer ~= nil or battle.isTrainerBattle) then
+        -- Refuse like a vanilla failed use ("failed" + a message row): the
+        -- bag closes with the ban line and no battle turn is spent.
+        return "failed",
+          { "Bag items cannot be used in trainer battles during Hard Mode!" }
       end
+      return origUse(data, save, itemId, target, battle, moveIndex, ow)
     end
-    return next(ctx)
-  end, 50)
+  end
 
   -- 5. Hard / Hardcore Level Caps: Clamp experience in exp.gain so mon cannot exceed gym level cap
   mod.hooks:wrap("exp.gain", function(next, c)

@@ -24,8 +24,12 @@ import os
 import sys
 from PIL import Image
 
-CL = os.path.expanduser("~/dev/CL_source")
-OUT = os.path.expanduser("~/dev/crystal_legacy_changes/assets/sprites")
+# Dev-side conversion source; override with the CL_SOURCE / CL_OW_OUT env
+# vars (defaults keep the historical local layout working unchanged).
+CL = os.environ.get("CL_SOURCE", os.path.expanduser("~/dev/CL_source"))
+OUT = os.environ.get(
+    "CL_OW_OUT",
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "assets", "sprites"))
 
 TARGETS = [
     ("gfx/sprites/articuno.png", "articuno.png", "16x96 sheet"),

@@ -1,7 +1,7 @@
 return {
   summary = "Crystal Legacy (TSP) Crystal data, story, event, difficulty, and quality-of-life changes.",
-  author = "Pokemon Gen 1 Recompilation Project",
-  contact = "https://github.com/bryanthaboi/gen1recomp",
+  author = "Shane McGovern",
+  contact = "https://github.com/ShaneMcGovernIE/crystal_legacy_changes",
   tags = { "balance", "crystal", "data" },
   differences = {
     changed = {

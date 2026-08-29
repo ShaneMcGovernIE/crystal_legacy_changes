@@ -59,3 +59,13 @@ POKEPORT_DATA_DIR=tests/fixture_data luajit mods/crystal_legacy_changes/tests/cr
 
 The mod targets Crystal specifically. It must be tested against a Crystal-support commit and
 a freshly imported Crystal cache, not a Gen 1-only checkout.
+
+## Development notes
+
+- The engine's gen2 icon override copy (overrides/icons/gen2/) is generated
+  from the canonical art in assets/icons/ -- after a fresh clone run
+  tools/sync_icons.sh before playtesting (the release workflow regenerates
+  the copy inside the packed zip automatically).
+- The dev-side data converters under tools/ read the Crystal Legacy
+  disassembly from the CL_SOURCE env var (default ~/dev/CL_source); they are
+  never shipped with the mod.

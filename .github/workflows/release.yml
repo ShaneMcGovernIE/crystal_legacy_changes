@@ -142,6 +142,11 @@ jobs:
           rm -rf "$staging/.github" "$staging/.gitattributes" \
                  "$staging/.gitignore" "$staging/.luarc.json"
 
+          # Regenerate the engine-override icon copy from the canonical art
+          # (overrides/icons/gen2 is generated, not tracked).
+          mkdir -p "$staging/overrides/icons/gen2"
+          cp -R "$staging/assets/icons/." "$staging/overrides/icons/gen2/"
+
           python3 - "$staging/manifest.json" "$VERSION" <<'PY'
           import json, sys
           path, version = sys.argv[1], sys.argv[2]

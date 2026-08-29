@@ -36,3 +36,8 @@ secrets*.json
 dist/
 build/
 coverage/
+
+# Generated from assets/icons by tools/sync_icons.sh -- the engine's
+# asset-override copy (gen2 party/summary/box/dex screens load it through
+# Assets.resolve).  The release workflow regenerates it in the packed zip.
+overrides/icons/gen2/

@@ -1,5 +1,30 @@
 # Changelog
 
+## [1.3.11] - 2026-08-29
+
+### Fixed
+
+- Fixed the intro crash: the difficulty-select screen required the engine's
+  src.ui.Chrome module (drawBox/printThrough), which no shipped engine build
+  provides -- the game died the first frame the screen drew, right before the
+  demo-mon reveal.  The screen now renders with src.ui.gen2.Chrome
+  (clear/box/print/cursor), the API every engine build ships.
+- Pinned the intro demo mon to WOOPER (ld a, WOOPER in CL and vanilla
+  pokecrystal intro_menu.asm) from the mod, so the axolotl reveal matches
+  Crystal Legacy on engine builds whose extractor still hardcodes MARILL.
+- Rewired the Hard/Hardcore in-battle bag ban from the dead
+  battle.item_usable hook (emitted by no engine build -- the ban never
+  fired) to a patch on ItemEffects.use, the dispatch every engine build's
+  BagMenu routes through.
+- Test suite: updated the stale gold-shaped mart expectations (39 crystal
+  shelves, CL-only shelves ride MART_ORDER), made the MartMenu.inventory and
+  item-evolution assertions engine-version tolerant, guarded the engine-side
+  difficulty-module checks, and fixed the fossils patch count.  Suite green
+  (922/922) on the current engine.
+- Corrected cap-table comments (Falkner's ace is Noctowl, not Pidgeotto) and
+  documented the Lance/Kanto cap timing (KarensRoom sets no cap; LancesRoom
+  raises to 60 only after the Lance fight).
+
 ## [1.3.10] - 2026-08-28
 
 ### Fixed

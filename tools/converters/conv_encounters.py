@@ -2,7 +2,7 @@
 """Convert CL (Pokemon Crystal Legacy) wild-encounter asm into the engine's
 encounters.lua data shape (Gold gen2Encounters).
 
-Source (read-only):  ~/dev/CL_source/data/wild/*.asm
+Source (read-only):  $CL_SOURCE/data/wild/*.asm  (default ~/dev/CL_source)
 Output:              data/encounters.lua  (plain Lua table, sandbox-clean)
 
 Output shape matches the engine's data.gen2Encounters record, keyed by
@@ -30,11 +30,12 @@ Percent encoding (engine stores raw bytes):
   `N percent + 1`  -> N*255//100 + 1
   plain `db N`     -> N
 """
+import os
 import re
 import sys
 from pathlib import Path
 
-WILD_DIR = Path.home() / "dev" / "CL_source" / "data" / "wild"
+WILD_DIR = Path(os.environ.get("CL_SOURCE", str(Path.home() / "dev" / "CL_source"))) / "data" / "wild"
 OUT = Path(__file__).resolve().parent.parent.parent / "data" / "encounters.lua"
 
 # ---------------------------------------------------------------- helpers
